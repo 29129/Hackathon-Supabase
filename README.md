@@ -41,7 +41,7 @@ La autorización no depende de la interfaz. Cada consulta pasa por políticas RL
 - Creación, archivo y reactivación de cursos.
 - Código de invitación único por curso.
 - Creación de tareas como borrador o publicación inmediata.
-- Edición y cierre de actividades.
+- Edición, cierre y eliminación confirmada de actividades.
 - Archivos de clase almacenados en un bucket privado.
 - Seguimiento de matrículas, entregas y fechas próximas.
 - Calificación sobre 10 con retroalimentación editable.
@@ -55,6 +55,7 @@ La autorización no depende de la interfaz. Cada consulta pasa por políticas RL
 - Búsqueda y filtros por estado de actividad.
 - Descarga temporal de materiales autorizados.
 - Entrega privada de archivos y comentarios.
+- Edición de la entrega mientras siga abierta y aún no tenga calificación.
 - Consulta exclusiva de sus calificaciones.
 - Centro de notificaciones con pendientes y notas recientes.
 
@@ -99,8 +100,8 @@ flowchart LR
 | Perfil | Consulta el propio y alumnos de sus cursos | Consulta únicamente el propio |
 | Cursos | Administra solo los que creó | Consulta solo los cursos activos donde está matriculado |
 | Matrículas | Consulta las de sus cursos | Consulta únicamente las propias |
-| Tareas | Crea y modifica las de sus cursos | Consulta tareas publicadas o cerradas de sus cursos |
-| Entregas | Consulta entregas de sus cursos | Crea y consulta únicamente su entrega |
+| Tareas | Crea, modifica y elimina las de sus cursos | Consulta tareas publicadas o cerradas de sus cursos |
+| Entregas | Consulta entregas de sus cursos | Crea y edita únicamente la propia mientras esté abierta y sin calificar |
 | Calificaciones | Crea y actualiza notas de sus cursos | Consulta únicamente sus notas |
 | Archivos | Administra material de sus cursos | Abre solo material autorizado y su propia entrega |
 | Auditoría | Consulta sus propios eventos | Consulta sus propios eventos |
@@ -144,7 +145,8 @@ Hackathon-Supabase/
 │       ├── 006_course_invites.sql
 │       ├── 007_assignment_workflow_rls.sql
 │       ├── 008_course_lifecycle_rls.sql
-│       └── 009_server_audit_triggers.sql
+│       ├── 009_server_audit_triggers.sql
+│       └── 010_assignment_deletion_submission_edit.sql
 ├── scripts/
 │   └── build.mjs
 ├── app.js
@@ -173,7 +175,7 @@ Crea un proyecto desde el panel de Supabase y espera a que la base de datos est�
 Abre el **SQL Editor** del proyecto y ejecuta, en este orden, el contenido de los archivos:
 
 ```text
-001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009
+001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010
 ```
 
 | Migración | Responsabilidad |
@@ -187,6 +189,7 @@ Abre el **SQL Editor** del proyecto y ejecuta, en este orden, el contenido de lo
 | `007_assignment_workflow_rls.sql` | Borradores, publicación, cierre y reglas de entrega |
 | `008_course_lifecycle_rls.sql` | Suspensión de acceso al archivar un curso |
 | `009_server_audit_triggers.sql` | Auditoría automática desde PostgreSQL |
+| `010_assignment_deletion_submission_edit.sql` | Edición de entregas sin calificar, identidad inmutable y limpieza segura |
 
 ### 4. Configurar la aplicación
 
@@ -260,11 +263,12 @@ Para que las confirmaciones de correo regresen a la aplicación, configura `http
 4. Cierra sesión e ingresa como **estudiante**.
 5. Usa el código para matricularte en el curso.
 6. Abre el material y envía una entrega.
-7. Pulsa **RLS activa** y ejecuta los cinco controles de seguridad.
-8. Observa que la consulta ajena y la ruta privada quedan bloqueadas.
-9. Regresa como profesor, revisa la entrega y publica una calificación.
-10. Vuelve como estudiante para comprobar la nota y la notificación.
-11. Abre la auditoría y exporta la evidencia en JSON.
+7. Edita la entrega y comprueba que el archivo o comentario se actualiza.
+8. Pulsa **RLS activa** y ejecuta los cinco controles de seguridad.
+9. Observa que la consulta ajena y la ruta privada quedan bloqueadas.
+10. Regresa como profesor, revisa la entrega y publica una calificación.
+11. Vuelve como estudiante y comprueba que la nota aparece y la edición queda bloqueada.
+12. Abre la auditoría, exporta la evidencia en JSON y prueba la eliminación confirmada de una tarea de ensayo.
 
 ## Qué demuestra la prueba de acceso denegado
 
@@ -282,6 +286,7 @@ La prueba no deshabilita botones ni simula un mensaje. Ejecuta una consulta real
 - Los archivos nunca se publican mediante URLs permanentes.
 - Los borradores permanecen ocultos para estudiantes.
 - Una tarea cerrada rechaza nuevas entregas desde la base de datos.
+- Una entrega calificada no puede modificarse ni eliminarse, incluso mediante una llamada directa a la API.
 - Archivar un curso suspende el acceso del estudiante a filas y archivos.
 - Los eventos de auditoría no pueden modificarse ni eliminarse desde el cliente.
 - Los triggers no almacenan el contenido sensible de las filas modificadas.

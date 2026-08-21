@@ -121,15 +121,27 @@ function hideWorkspaceSections() {
   document.querySelectorAll('.workspace-view').forEach((section) => section.classList.add('hidden'));
 }
 
-function renderStudentSpaces(courses, assignments, submittedIds = new Set()) {
+function studentSubmissionAction(assignment, submission, buttonClass = 'detail-action-button', labels = {}) {
+  const grade = relatedOne(submission?.grades);
+  if (grade) return '<span class="grade-chip">Calificada</span>';
+  if (submission && assignment.status === 'published') {
+    return `<button class="${buttonClass}" type="button" data-edit-submission-assignment="${assignment.id}" data-submit-title="${escapeHtml(assignment.title)}">${labels.edit || 'Editar entrega'}</button>`;
+  }
+  if (submission) return '<span class="grade-chip neutral">Entregada</span>';
+  if (assignment.status === 'closed') return '<span class="task-status-pill closed">Cerrada</span>';
+  return `<button class="${buttonClass}" type="button" data-submit-assignment="${assignment.id}" data-submit-title="${escapeHtml(assignment.title)}">${labels.create || 'Entregar'}</button>`;
+}
+
+function renderStudentSpaces(courses, assignments, submissionByAssignment = new Map()) {
   document.getElementById('space-course-list').innerHTML = courses.length
     ? courses.map((course) => `<article class="workspace-card"><span class="course-icon">${escapeHtml(course.subject.slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(course.name)}</strong><small>${escapeHtml(course.subject)} · ${escapeHtml(course.description || 'Curso activo')}</small></div><div class="workspace-card-actions"><span class="course-status">Activo</span><button class="course-open-button" type="button" data-open-course="${course.id}">Ver curso →</button></div></article>`).join('')
     : '<div class="empty-state">No tienes cursos asignados todavía.</div>';
   document.getElementById('space-task-list').innerHTML = assignments.length
     ? assignments.map((assignment) => {
-        const state = assignment.status === 'closed' ? 'closed' : submittedIds.has(assignment.id) ? 'submitted' : 'pending';
+        const submission = submissionByAssignment.get(assignment.id);
+        const state = submission ? 'submitted' : assignment.status === 'closed' ? 'closed' : 'pending';
         const searchText = `${assignment.title} ${assignment.courses?.name || ''} ${assignment.description || ''}`.toLowerCase();
-        const stateAction = state === 'closed' ? '<span class="task-status-pill closed">Cerrada</span>' : state === 'submitted' ? '<span class="grade-chip">Entregada</span>' : `<button class="detail-action-button" type="button" data-submit-assignment="${assignment.id}" data-submit-title="${escapeHtml(assignment.title)}">Entregar</button>`;
+        const stateAction = studentSubmissionAction(assignment, submission);
         return `<article class="workspace-row task-workspace-row" data-task-row data-task-status="${state}" data-search-text="${escapeHtml(searchText)}"><span class="task-state-dot ${state}"></span><div><strong>${escapeHtml(assignment.title)}</strong><small>${escapeHtml(assignment.courses?.name || 'Curso')} · ${assignmentStatusLabel(assignment.status)} · Entrega: ${formatDueDate(assignment.due_at)}</small><p>${escapeHtml(assignment.description || 'Consulta los detalles de esta actividad.')}</p></div><div class="workspace-actions"><button class="task-detail-button" type="button" data-view-assignment="${assignment.id}">Detalles</button>${assignment.attachment_path ? `<button class="file-link" type="button" data-file-path="${escapeHtml(assignment.attachment_path)}">Archivo</button>` : ''}${stateAction}</div></article>`;
       }).join('')
     : '<div class="empty-state">No hay tareas publicadas.</div>';
@@ -431,7 +443,9 @@ function auditActionLabel(action = '') {
     course_reactivated: 'Curso reactivado',
     assignment_created: 'Tarea creada',
     assignment_updated: 'Tarea actualizada',
+    assignment_deleted: 'Tarea eliminada',
     submission_created: 'Entrega enviada',
+    submission_updated: 'Entrega actualizada',
     grade_created: 'Calificación publicada',
     grade_updated: 'Calificación actualizada',
     courses_insert: 'Curso creado',
@@ -765,7 +779,7 @@ async function loadStudentDashboard() {
     document.getElementById('average-stat').innerHTML = '— <em>/ 10</em>';
     taskList.innerHTML = '<div class="empty-state">Aún no estás matriculado en cursos.</div>';
     gradeList.innerHTML = '<div class="empty-state">Tus calificaciones aparecerán aquí.</div>';
-    renderStudentSpaces([], [], new Set());
+    renderStudentSpaces([], [], new Map());
     setNotificationItems([]);
     return;
   }
@@ -785,13 +799,14 @@ async function loadStudentDashboard() {
   const openAssignments = allAssignments.filter((assignment) => assignment.status === 'published');
   taskList.innerHTML = openAssignments.length ? '<div class="empty-state">Preparando tareas...</div>' : '<div class="empty-state">No tienes tareas pendientes.</div>';
 
-  const { data: submissions } = await supabaseClient.from('submissions').select('id, assignment_id').eq('student_id', currentUser.id);
+  const { data: submissions } = await supabaseClient.from('submissions').select('id, assignment_id, content, file_path, grades(id)').eq('student_id', currentUser.id);
+  const submissionByAssignment = new Map((submissions || []).map((submission) => [submission.assignment_id, submission]));
   const submittedIds = new Set((submissions || []).map((submission) => submission.assignment_id));
   const pendingAssignmentsCount = openAssignments.filter((assignment) => !submittedIds.has(assignment.id)).length;
   document.getElementById('pending-count').textContent = pendingAssignmentsCount;
-  renderStudentSpaces(courses, allAssignments, submittedIds);
+  renderStudentSpaces(courses, allAssignments, submissionByAssignment);
   taskList.innerHTML = openAssignments.length
-    ? openAssignments.slice(0, 4).map((assignment) => `<div class="task-row"><span class="subject-tag ${subjectClass(assignment.courses?.subject)}">${escapeHtml((assignment.courses?.subject || 'CUR').slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(assignment.title)}</strong><small>${escapeHtml(assignment.courses?.name || 'Curso')}</small></div><button class="task-detail-button compact" type="button" data-view-assignment="${assignment.id}">Detalles</button>${assignment.attachment_path ? `<button class="file-link" type="button" data-file-path="${escapeHtml(assignment.attachment_path)}">Archivo</button>` : ''}${submittedIds.has(assignment.id) ? '<span class="grade-chip">Entregada</span>' : `<button class="file-link" type="button" data-submit-assignment="${assignment.id}" data-submit-title="${escapeHtml(assignment.title)}">Entregar</button>`}<span class="due">${formatDueDate(assignment.due_at)}</span></div>`).join('')
+    ? openAssignments.slice(0, 4).map((assignment) => `<div class="task-row"><span class="subject-tag ${subjectClass(assignment.courses?.subject)}">${escapeHtml((assignment.courses?.subject || 'CUR').slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(assignment.title)}</strong><small>${escapeHtml(assignment.courses?.name || 'Curso')}</small></div><button class="task-detail-button compact" type="button" data-view-assignment="${assignment.id}">Detalles</button>${assignment.attachment_path ? `<button class="file-link" type="button" data-file-path="${escapeHtml(assignment.attachment_path)}">Archivo</button>` : ''}${studentSubmissionAction(assignment, submissionByAssignment.get(assignment.id), 'file-link', { create: 'Entregar', edit: 'Editar' })}<span class="due">${formatDueDate(assignment.due_at)}</span></div>`).join('')
     : '<div class="empty-state">No tienes tareas pendientes.</div>';
   const submissionIds = (submissions || []).map((submission) => submission.id);
   const { data: grades } = submissionIds.length
@@ -965,7 +980,7 @@ async function loadTeacherWorkspaceAssignments(courseIds) {
   taskList.innerHTML = assignments?.length
     ? assignments.map((assignment) => {
         const searchText = `${assignment.title} ${assignment.courses?.name || ''} ${assignment.description || ''}`.toLowerCase();
-        return `<article class="workspace-row task-workspace-row" data-task-row data-task-status="${assignment.status}" data-search-text="${escapeHtml(searchText)}"><span class="task-state-dot ${assignment.status}"></span><div><strong>${escapeHtml(assignment.title)}</strong><small>${escapeHtml(assignment.courses?.name || 'Curso')} · ${assignmentStatusLabel(assignment.status)} · Entrega: ${formatDueDate(assignment.due_at)}</small><p>${escapeHtml(assignment.description || 'Sin instrucciones adicionales.')}</p></div><div class="workspace-actions"><span class="task-status-pill ${assignment.status}">${assignmentStatusLabel(assignment.status)}</span><button class="task-detail-button" type="button" data-edit-assignment="${assignment.id}">Editar</button>${assignment.attachment_path ? `<button class="file-link" type="button" data-file-path="${escapeHtml(assignment.attachment_path)}">Archivo</button>` : ''}</div></article>`;
+        return `<article class="workspace-row task-workspace-row" data-task-row data-task-status="${assignment.status}" data-search-text="${escapeHtml(searchText)}"><span class="task-state-dot ${assignment.status}"></span><div><strong>${escapeHtml(assignment.title)}</strong><small>${escapeHtml(assignment.courses?.name || 'Curso')} · ${assignmentStatusLabel(assignment.status)} · Entrega: ${formatDueDate(assignment.due_at)}</small><p>${escapeHtml(assignment.description || 'Sin instrucciones adicionales.')}</p></div><div class="workspace-actions"><span class="task-status-pill ${assignment.status}">${assignmentStatusLabel(assignment.status)}</span><button class="task-detail-button" type="button" data-edit-assignment="${assignment.id}">Editar</button><button class="task-delete-shortcut" type="button" data-delete-assignment="${assignment.id}" data-delete-title="${escapeHtml(assignment.title)}">Eliminar</button>${assignment.attachment_path ? `<button class="file-link" type="button" data-file-path="${escapeHtml(assignment.attachment_path)}">Archivo</button>` : ''}</div></article>`;
       }).join('')
     : '<div class="empty-state">Aún no has publicado tareas.</div>';
   const files = (assignments || []).filter((assignment) => assignment.attachment_path);
@@ -1035,13 +1050,14 @@ function renderCourseDetail(course, assignments, submissions, enrollments, role)
         const grade = relatedOne(ownSubmission?.grades);
         let studentState = `<button class="detail-action-button" type="button" data-submit-assignment="${assignment.id}" data-submit-title="${escapeHtml(assignment.title)}">Entregar tarea</button>`;
         if (ownSubmission && grade) studentState = `<span class="detail-score">${Number(grade.score).toFixed(1)} / 10</span>`;
+        else if (ownSubmission && assignment.status === 'published') studentState = `<button class="detail-action-button edit-submission-button" type="button" data-edit-submission-assignment="${assignment.id}" data-submit-title="${escapeHtml(assignment.title)}">Editar entrega</button>`;
         else if (ownSubmission) studentState = '<span class="detail-state success">Entregada</span>';
         else if (assignment.status === 'closed') studentState = '<span class="detail-state">Cerrada</span>';
         const action = isTeacher
           ? `<span class="detail-state">${courseSubmissions.length} ${courseSubmissions.length === 1 ? 'entrega' : 'entregas'}</span>`
           : studentState;
         const detailsButton = isTeacher
-          ? `<button class="task-detail-button" type="button" data-edit-assignment="${assignment.id}">Editar</button>`
+          ? `<button class="task-detail-button" type="button" data-edit-assignment="${assignment.id}">Editar</button><button class="task-delete-shortcut" type="button" data-delete-assignment="${assignment.id}" data-delete-title="${escapeHtml(assignment.title)}">Eliminar</button>`
           : `<button class="task-detail-button" type="button" data-view-assignment="${assignment.id}">Detalles</button>`;
         return `<article class="detail-activity-row"><span class="subject-tag ${subjectClass(course.subject)}">${escapeHtml(course.subject.slice(0, 3).toUpperCase())}</span><div class="detail-activity-copy"><strong>${escapeHtml(assignment.title)}</strong><small>${assignmentStatusLabel(assignment.status)} · Entrega: ${formatAssignmentDate(assignment.due_at)}</small><p>${escapeHtml(assignment.description || 'Sin instrucciones adicionales.')}</p></div><div class="detail-row-actions">${detailsButton}${assignment.attachment_path ? `<button class="file-link" type="button" data-file-path="${escapeHtml(assignment.attachment_path)}">Abrir material</button>` : '<span class="detail-muted">Sin adjunto</span>'}${action}</div></article>`;
       }).join('')
@@ -1157,7 +1173,7 @@ async function openAssignmentModal(assignmentId) {
     if (!assignment) throw new Error('No tienes permiso para consultar esta tarea.');
     const course = relatedOne(assignment.courses) || {};
     if (role === 'teacher') {
-      content.innerHTML = `<div class="task-modal-heading"><div><span class="eyebrow accent">Edición protegida por RLS</span><h2>Editar tarea</h2><p>${escapeHtml(course.name || 'Curso')} · Los cambios se reflejan inmediatamente.</p></div><span class="task-status-pill ${assignment.status}">${assignmentStatusLabel(assignment.status)}</span></div><form class="task-edit-form" data-task-edit-form data-assignment-id="${assignment.id}"><label class="form-field">Título<input name="title" maxlength="100" required value="${escapeHtml(assignment.title)}" /></label><label class="form-field">Instrucciones<textarea name="description" rows="5" maxlength="1200" required>${escapeHtml(assignment.description || '')}</textarea></label><div class="assignment-form-grid"><label class="form-field">Fecha de entrega<input name="due_at" type="date" required value="${dateInputValue(assignment.due_at)}" /></label><label class="form-field">Estado<select name="status"><option value="draft" ${assignment.status === 'draft' ? 'selected' : ''}>Borrador privado</option><option value="published" ${assignment.status === 'published' ? 'selected' : ''}>Publicada</option><option value="closed" ${assignment.status === 'closed' ? 'selected' : ''}>Cerrada</option></select></label></div><div class="task-existing-file"><div><span>Material adjunto</span><small>${assignment.attachment_path ? 'Archivo almacenado de forma privada.' : 'Esta tarea no tiene archivo.'}</small></div>${assignment.attachment_path ? `<button class="file-link" type="button" data-file-path="${escapeHtml(assignment.attachment_path)}">Abrir material</button>` : '<span class="detail-muted">Sin archivo</span>'}</div><button class="primary-button auth-submit" type="submit"><span>Guardar cambios</span><span>→</span></button><p class="form-feedback" data-task-edit-feedback aria-live="polite"></p></form>`;
+      content.innerHTML = `<div class="task-modal-heading"><div><span class="eyebrow accent">Edición protegida por RLS</span><h2>Editar tarea</h2><p>${escapeHtml(course.name || 'Curso')} · Los cambios se reflejan inmediatamente.</p></div><span class="task-status-pill ${assignment.status}">${assignmentStatusLabel(assignment.status)}</span></div><form class="task-edit-form" data-task-edit-form data-assignment-id="${assignment.id}"><label class="form-field">Título<input name="title" maxlength="100" required value="${escapeHtml(assignment.title)}" /></label><label class="form-field">Instrucciones<textarea name="description" rows="5" maxlength="1200" required>${escapeHtml(assignment.description || '')}</textarea></label><div class="assignment-form-grid"><label class="form-field">Fecha de entrega<input name="due_at" type="date" required value="${dateInputValue(assignment.due_at)}" /></label><label class="form-field">Estado<select name="status"><option value="draft" ${assignment.status === 'draft' ? 'selected' : ''}>Borrador privado</option><option value="published" ${assignment.status === 'published' ? 'selected' : ''}>Publicada</option><option value="closed" ${assignment.status === 'closed' ? 'selected' : ''}>Cerrada</option></select></label></div><div class="task-existing-file"><div><span>Material adjunto</span><small>${assignment.attachment_path ? 'Archivo almacenado de forma privada.' : 'Esta tarea no tiene archivo.'}</small></div>${assignment.attachment_path ? `<button class="file-link" type="button" data-file-path="${escapeHtml(assignment.attachment_path)}">Abrir material</button>` : '<span class="detail-muted">Sin archivo</span>'}</div><div class="task-edit-footer"><button class="danger-button" type="button" data-delete-assignment="${assignment.id}" data-delete-title="${escapeHtml(assignment.title)}"><span>Eliminar tarea</span></button><button class="primary-button auth-submit" type="submit"><span>Guardar cambios</span><span>→</span></button></div><p class="task-delete-note">Eliminar también borra sus entregas, calificaciones y archivos privados.</p><p class="form-feedback" data-task-edit-feedback aria-live="polite"></p></form>`;
       return;
     }
     const submissionResult = await withTimeout(
@@ -1171,7 +1187,7 @@ async function openAssignmentModal(assignmentId) {
     const grade = relatedOne(submission?.grades);
     let submissionState = `<button class="primary-button" type="button" data-submit-assignment="${assignment.id}" data-submit-title="${escapeHtml(assignment.title)}">Entregar tarea <span>→</span></button>`;
     if (grade) submissionState = `<div class="task-grade-result"><span>Calificación</span><strong>${Number(grade.score).toFixed(1)} <em>/ 10</em></strong><p>${escapeHtml(grade.feedback || 'Calificación publicada.')}</p></div>`;
-    else if (submission) submissionState = `<div class="task-submitted-state"><span>✓</span><div><strong>Entrega enviada</strong><small>${formatLongDate(submission.submitted_at)}</small></div>${submission.file_path ? `<button class="file-link" type="button" data-file-path="${escapeHtml(submission.file_path)}">Mi archivo</button>` : ''}</div>`;
+    else if (submission) submissionState = `<div class="task-submitted-state"><span>✓</span><div><strong>Entrega enviada</strong><small>${formatLongDate(submission.submitted_at)}${assignment.status === 'published' ? ' · Aún puedes editarla' : ''}</small></div>${submission.file_path ? `<button class="file-link" type="button" data-file-path="${escapeHtml(submission.file_path)}">Mi archivo</button>` : ''}${assignment.status === 'published' ? `<button class="submission-edit-button" type="button" data-edit-submission-assignment="${assignment.id}" data-submit-title="${escapeHtml(assignment.title)}">Editar entrega</button>` : ''}</div>`;
     else if (assignment.status === 'closed') submissionState = '<div class="task-closed-state">Esta tarea está cerrada y ya no acepta entregas.</div>';
     content.innerHTML = `<div class="task-modal-heading"><div><span class="eyebrow accent">${escapeHtml(course.subject || 'Actividad')}</span><h2>${escapeHtml(assignment.title)}</h2><p>${escapeHtml(course.name || 'Curso')}</p></div><span class="task-status-pill ${assignment.status}">${assignmentStatusLabel(assignment.status)}</span></div><div class="task-detail-meta"><div><span>Fecha de entrega</span><strong>${formatAssignmentDate(assignment.due_at)}</strong></div><div><span>Estado</span><strong>${assignmentStatusLabel(assignment.status)}</strong></div><div><span>Privacidad</span><strong>Solo participantes</strong></div></div><section class="task-instructions"><span class="eyebrow">Instrucciones</span><p>${escapeHtml(assignment.description || 'El profesor no añadió instrucciones adicionales.')}</p></section><div class="task-modal-actions">${assignment.attachment_path ? `<button class="secondary-button" type="button" data-file-path="${escapeHtml(assignment.attachment_path)}">Abrir material protegido</button>` : '<span class="detail-muted">Sin material adjunto</span>'}${submissionState}</div><div class="task-privacy-note"><span>✓</span><p>Tu entrega solo puede ser consultada por ti y por el profesor de este curso.</p></div>`;
   } catch (error) {
@@ -1218,6 +1234,67 @@ async function updateAssignment(event) {
   } catch (error) {
     feedback.textContent = error.message || 'No se pudo actualizar la tarea.';
     button.disabled = false;
+  }
+}
+
+async function deleteAssignment(button) {
+  const assignmentId = button?.dataset.deleteAssignment;
+  const assignmentTitle = button?.dataset.deleteTitle || 'esta tarea';
+  if (!assignmentId) return;
+  const confirmed = window.confirm(`¿Eliminar “${assignmentTitle}”?\n\nTambién se eliminarán sus entregas, calificaciones y archivos privados. Esta acción no se puede deshacer.`);
+  if (!confirmed) return;
+
+  const feedback = button.closest('form')?.querySelector('[data-task-edit-feedback]');
+  const originalContent = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = '<span>Eliminando...</span>';
+  if (feedback) {
+    feedback.className = 'form-feedback';
+    feedback.textContent = 'Eliminando datos y archivos protegidos...';
+  }
+
+  try {
+    const [assignmentResult, submissionsResult] = await withTimeout(Promise.all([
+      supabaseClient.from('assignments').select('id, title, attachment_path').eq('id', assignmentId).maybeSingle(),
+      supabaseClient.from('submissions').select('file_path').eq('assignment_id', assignmentId)
+    ]), 12000, 'Preparar la eliminación tardó demasiado.');
+    if (assignmentResult.error) throw new Error(assignmentResult.error.message);
+    if (submissionsResult.error) throw new Error(submissionsResult.error.message);
+    if (!assignmentResult.data) throw new Error('RLS bloqueó la eliminación porque no eres el profesor de este curso.');
+
+    const protectedPaths = [
+      assignmentResult.data.attachment_path,
+      ...(submissionsResult.data || []).map((submission) => submission.file_path)
+    ].filter(Boolean);
+    const uniquePaths = [...new Set(protectedPaths)];
+    if (uniquePaths.length) {
+      const storageResult = await withTimeout(
+        supabaseClient.storage.from('course-files').remove(uniquePaths),
+        15000,
+        'Eliminar los archivos privados tardó demasiado.'
+      );
+      if (storageResult.error) throw new Error(`No se pudieron eliminar los archivos: ${storageResult.error.message}`);
+    }
+
+    const deleteResult = await withTimeout(
+      supabaseClient.from('assignments').delete().eq('id', assignmentId).select('id').maybeSingle(),
+      12000,
+      'Eliminar la tarea tardó demasiado.'
+    );
+    if (deleteResult.error) throw new Error(deleteResult.error.message);
+    if (!deleteResult.data) throw new Error('RLS bloqueó la eliminación de esta tarea.');
+
+    const detailId = currentCourseDetailId;
+    closeTaskModal();
+    showToast('Tarea eliminada junto con sus datos asociados.');
+    await logAudit('assignment_deleted', 'assignment', { assignment_id: assignmentId, deleted_files: uniquePaths.length });
+    await loadTeacherCourses();
+    if (detailId) await openCourseDetail(detailId);
+  } catch (error) {
+    if (feedback) feedback.textContent = error.message || 'No se pudo eliminar la tarea.';
+    else showToast(`No se pudo eliminar la tarea: ${error.message || 'Error inesperado.'}`);
+    button.disabled = false;
+    button.innerHTML = originalContent;
   }
 }
 
@@ -1368,11 +1445,78 @@ async function openProtectedFile(path) {
   window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
 }
 
-function openSubmissionModal(assignmentId, title) {
+function submissionFileName(path = '') {
+  return String(path).split('/').pop().replace(/^[0-9a-f-]{36}-/i, '') || 'Archivo actual';
+}
+
+function resetSubmissionModal() {
+  const form = document.getElementById('submission-form');
+  form.reset();
+  document.getElementById('submission-assignment-id').value = '';
+  document.getElementById('submission-id').value = '';
+  document.getElementById('submission-current-file').value = '';
+  document.getElementById('submission-modal-eyebrow').textContent = 'Entrega privada';
+  document.getElementById('submission-title').textContent = 'Entregar tarea';
+  document.getElementById('submission-file-label').textContent = 'Archivo de entrega';
+  document.getElementById('submission-file-name').textContent = 'Selecciona tu entrega';
+  document.getElementById('submission-file-help').textContent = 'Tu archivo solo será visible para ti y tu profesor.';
+  document.getElementById('submission-submit-label').textContent = 'Enviar entrega';
+  document.getElementById('submission-file').required = true;
+  const feedback = document.getElementById('submission-feedback');
+  feedback.className = 'form-feedback';
+  feedback.textContent = '';
+}
+
+function closeSubmissionModal() {
+  document.getElementById('submission-modal').classList.add('hidden');
+  resetSubmissionModal();
+}
+
+async function openSubmissionModal(assignmentId, title, editing = false) {
+  if (!assignmentId || !supabaseClient || !currentUser) return;
+  resetSubmissionModal();
+  const modal = document.getElementById('submission-modal');
+  const feedback = document.getElementById('submission-feedback');
+  const submitButton = document.querySelector('#submission-form button[type="submit"]');
+  const fileInput = document.getElementById('submission-file');
   document.getElementById('submission-assignment-id').value = assignmentId;
-  document.getElementById('submission-title').textContent = title;
-  document.getElementById('submission-feedback').textContent = '';
-  document.getElementById('submission-modal').classList.remove('hidden');
+  document.getElementById('submission-title').textContent = editing ? `Editar entrega · ${title}` : title;
+  modal.classList.remove('hidden');
+  if (!editing) return;
+
+  document.getElementById('submission-modal-eyebrow').textContent = 'Entrega sin calificar';
+  document.getElementById('submission-file-label').textContent = 'Reemplazar archivo (opcional)';
+  document.getElementById('submission-submit-label').textContent = 'Guardar cambios';
+  fileInput.required = false;
+  submitButton.disabled = true;
+  feedback.textContent = 'Cargando tu entrega...';
+  let canEdit = false;
+  try {
+    const result = await withTimeout(
+      supabaseClient.from('submissions').select('id, content, file_path, grades(id), assignments(status)').eq('assignment_id', assignmentId).eq('student_id', currentUser.id).maybeSingle(),
+      12000,
+      'Tu entrega tardó demasiado en cargar.'
+    );
+    if (result.error) throw new Error(result.error.message);
+    const submission = result.data;
+    if (!submission) throw new Error('No se encontró una entrega editable para esta tarea.');
+    if (relatedOne(submission.grades)) throw new Error('Esta entrega ya fue calificada y quedó bloqueada para proteger la nota.');
+    if (relatedOne(submission.assignments)?.status !== 'published') throw new Error('La tarea está cerrada y ya no permite cambios.');
+    document.getElementById('submission-id').value = submission.id;
+    document.getElementById('submission-current-file').value = submission.file_path || '';
+    document.getElementById('submission-content').value = submission.content || '';
+    document.getElementById('submission-file-name').textContent = submission.file_path ? `Actual: ${submissionFileName(submission.file_path)}` : 'Selecciona un archivo';
+    document.getElementById('submission-file-help').textContent = submission.file_path
+      ? 'Si no eliges otro archivo, se conservará el actual. Solo tú y tu profesor pueden verlo.'
+      : 'Esta entrega no tiene archivo; selecciona uno antes de guardar.';
+    fileInput.required = !submission.file_path;
+    feedback.textContent = '';
+    canEdit = true;
+  } catch (error) {
+    feedback.textContent = error.message || 'No se pudo cargar tu entrega.';
+  } finally {
+    submitButton.disabled = !canEdit;
+  }
 }
 
 async function createSubmission(event) {
@@ -1381,33 +1525,47 @@ async function createSubmission(event) {
   const feedback = document.getElementById('submission-feedback');
   const button = form.querySelector('button[type="submit"]');
   const assignmentId = document.getElementById('submission-assignment-id').value;
+  const submissionId = document.getElementById('submission-id').value;
+  const currentFilePath = document.getElementById('submission-current-file').value;
   const file = document.getElementById('submission-file').files[0];
-  if (!file) {
+  const isEditing = Boolean(submissionId);
+  if (!file && !currentFilePath) {
     feedback.textContent = 'Selecciona un archivo para enviar tu entrega.';
     return;
   }
   button.disabled = true;
-  feedback.textContent = 'Enviando entrega...';
+  feedback.className = 'form-feedback';
+  feedback.textContent = isEditing ? 'Guardando cambios...' : 'Enviando entrega...';
   let filePath = null;
-  let submissionCreated = false;
+  let submissionSaved = false;
   try {
-    if (file.size > 10 * 1024 * 1024) throw new Error('El archivo supera el límite de 10 MB.');
-    filePath = `submissions/${assignmentId}/${currentUser.id}/${crypto.randomUUID()}-${file.name}`;
-    const upload = await withTimeout(supabaseClient.storage.from('course-files').upload(filePath, file, { upsert: false }), 15000, 'La subida tardó demasiado. Comprueba tu conexión y Storage.');
-    if (upload.error) throw new Error(upload.error.message);
-    const result = await withTimeout(supabaseClient.from('submissions').insert({ assignment_id: assignmentId, student_id: currentUser.id, content: document.getElementById('submission-content').value.trim(), file_path: filePath }), 15000, 'Guardar la entrega tardó demasiado.');
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) throw new Error('El archivo supera el límite de 10 MB.');
+      filePath = `submissions/${assignmentId}/${currentUser.id}/${crypto.randomUUID()}-${file.name}`;
+      const upload = await withTimeout(supabaseClient.storage.from('course-files').upload(filePath, file, { upsert: false }), 15000, 'La subida tardó demasiado. Comprueba tu conexión y Storage.');
+      if (upload.error) throw new Error(upload.error.message);
+    }
+    const content = document.getElementById('submission-content').value.trim();
+    const request = isEditing
+      ? supabaseClient.from('submissions').update({ content, submitted_at: new Date().toISOString(), ...(filePath ? { file_path: filePath } : {}) }).eq('id', submissionId).eq('student_id', currentUser.id).select('id').maybeSingle()
+      : supabaseClient.from('submissions').insert({ assignment_id: assignmentId, student_id: currentUser.id, content, file_path: filePath }).select('id').single();
+    const result = await withTimeout(request, 15000, isEditing ? 'Actualizar la entrega tardó demasiado.' : 'Guardar la entrega tardó demasiado.');
     if (result.error) throw new Error(result.error.message);
-    submissionCreated = true;
-    form.reset();
-    document.getElementById('submission-file-name').textContent = 'Selecciona tu entrega';
-    document.getElementById('submission-modal').classList.add('hidden');
-    showToast('Entrega enviada correctamente.');
-    await logAudit('submission_created', 'submission', { has_file: true });
+    if (!result.data) throw new Error('RLS bloqueó el cambio. La tarea puede estar cerrada o la entrega ya fue calificada.');
+    submissionSaved = true;
+    if (isEditing && filePath && currentFilePath && currentFilePath !== filePath) {
+      const cleanup = await supabaseClient.storage.from('course-files').remove([currentFilePath]);
+      if (cleanup.error) console.warn('No se pudo limpiar el archivo anterior:', cleanup.error.message);
+    }
+    const detailId = currentCourseDetailId;
+    closeSubmissionModal();
+    showToast(isEditing ? 'Entrega actualizada correctamente.' : 'Entrega enviada correctamente.');
+    await logAudit(isEditing ? 'submission_updated' : 'submission_created', 'submission', { assignment_id: assignmentId, replaced_file: Boolean(isEditing && filePath) });
     await loadStudentDashboard();
-    if (currentCourseDetailId) await openCourseDetail(currentCourseDetailId);
+    if (detailId) await openCourseDetail(detailId);
   } catch (error) {
-    if (filePath && !submissionCreated) await supabaseClient.storage.from('course-files').remove([filePath]);
-    feedback.textContent = error.message || 'No se pudo enviar la entrega.';
+    if (filePath && !submissionSaved) await supabaseClient.storage.from('course-files').remove([filePath]);
+    feedback.textContent = error.message || (isEditing ? 'No se pudo actualizar la entrega.' : 'No se pudo enviar la entrega.');
   } finally {
     button.disabled = false;
   }
@@ -1500,6 +1658,8 @@ document.getElementById('student-task-list').addEventListener('click', (event) =
   if (fileButton) openProtectedFile(fileButton.dataset.filePath);
   const submitButton = event.target.closest('[data-submit-assignment]');
   if (submitButton) openSubmissionModal(submitButton.dataset.submitAssignment, submitButton.dataset.submitTitle);
+  const editSubmissionButton = event.target.closest('[data-edit-submission-assignment]');
+  if (editSubmissionButton) openSubmissionModal(editSubmissionButton.dataset.editSubmissionAssignment, editSubmissionButton.dataset.submitTitle, true);
   const detailButton = event.target.closest('[data-view-assignment]');
   if (detailButton) openAssignmentModal(detailButton.dataset.viewAssignment);
 });
@@ -1524,10 +1684,14 @@ document.getElementById('space-task-list').addEventListener('click', (event) => 
   if (fileButton) openProtectedFile(fileButton.dataset.filePath);
   const submitButton = event.target.closest('[data-submit-assignment]');
   if (submitButton) openSubmissionModal(submitButton.dataset.submitAssignment, submitButton.dataset.submitTitle);
+  const editSubmissionButton = event.target.closest('[data-edit-submission-assignment]');
+  if (editSubmissionButton) openSubmissionModal(editSubmissionButton.dataset.editSubmissionAssignment, editSubmissionButton.dataset.submitTitle, true);
   const viewButton = event.target.closest('[data-view-assignment]');
   if (viewButton) openAssignmentModal(viewButton.dataset.viewAssignment);
   const editButton = event.target.closest('[data-edit-assignment]');
   if (editButton) openAssignmentModal(editButton.dataset.editAssignment);
+  const deleteButton = event.target.closest('[data-delete-assignment]');
+  if (deleteButton) deleteAssignment(deleteButton);
 });
 document.getElementById('task-search').addEventListener('input', filterTaskWorkspace);
 document.getElementById('task-status-filter').addEventListener('change', filterTaskWorkspace);
@@ -1538,11 +1702,13 @@ document.getElementById('teacher-course-insights').addEventListener('click', (ev
 document.getElementById('teacher-deadline-list').addEventListener('click', (event) => {
   const editButton = event.target.closest('[data-edit-assignment]');
   if (editButton) openAssignmentModal(editButton.dataset.editAssignment);
+  const deleteButton = event.target.closest('[data-delete-assignment]');
+  if (deleteButton) deleteAssignment(deleteButton);
 });
 document.querySelector('[data-teacher-new-task]').addEventListener('click', () => openTeacherComposer('task'));
 document.querySelector('[data-teacher-scroll-submissions]').addEventListener('click', focusTeacherSubmissions);
 document.getElementById('submission-form').addEventListener('submit', createSubmission);
-document.getElementById('close-submission-modal').addEventListener('click', () => document.getElementById('submission-modal').classList.add('hidden'));
+document.getElementById('close-submission-modal').addEventListener('click', closeSubmissionModal);
 document.getElementById('teacher-submission-list').addEventListener('click', (event) => {
   const fileButton = event.target.closest('[data-file-path]');
   if (fileButton) openProtectedFile(fileButton.dataset.filePath);
@@ -1570,6 +1736,8 @@ document.getElementById('course-detail-view').addEventListener('click', (event) 
   if (fileButton) openProtectedFile(fileButton.dataset.filePath);
   const submitButton = event.target.closest('[data-submit-assignment]');
   if (submitButton) openSubmissionModal(submitButton.dataset.submitAssignment, submitButton.dataset.submitTitle);
+  const editSubmissionButton = event.target.closest('[data-edit-submission-assignment]');
+  if (editSubmissionButton) openSubmissionModal(editSubmissionButton.dataset.editSubmissionAssignment, editSubmissionButton.dataset.submitTitle, true);
   const codeButton = event.target.closest('[data-copy-code]');
   if (codeButton) copyCourseCode(codeButton.dataset.copyCode);
   const refreshButton = event.target.closest('[data-refresh-course]');
@@ -1584,6 +1752,8 @@ document.getElementById('course-detail-view').addEventListener('click', (event) 
   if (viewButton) openAssignmentModal(viewButton.dataset.viewAssignment);
   const editButton = event.target.closest('[data-edit-assignment]');
   if (editButton) openAssignmentModal(editButton.dataset.editAssignment);
+  const deleteButton = event.target.closest('[data-delete-assignment]');
+  if (deleteButton) deleteAssignment(deleteButton);
   if (event.target.closest('[data-course-security-test]')) runDeniedAccessTest('course-security-result');
 });
 document.getElementById('close-task-modal').addEventListener('click', closeTaskModal);
@@ -1596,6 +1766,13 @@ document.getElementById('task-modal').addEventListener('click', (event) => {
     closeTaskModal();
     openSubmissionModal(submitButton.dataset.submitAssignment, submitButton.dataset.submitTitle);
   }
+  const editSubmissionButton = event.target.closest('[data-edit-submission-assignment]');
+  if (editSubmissionButton) {
+    closeTaskModal();
+    openSubmissionModal(editSubmissionButton.dataset.editSubmissionAssignment, editSubmissionButton.dataset.submitTitle, true);
+  }
+  const deleteButton = event.target.closest('[data-delete-assignment]');
+  if (deleteButton) deleteAssignment(deleteButton);
 });
 document.getElementById('task-modal').addEventListener('submit', updateAssignment);
 document.getElementById('open-guide').addEventListener('click', () => document.getElementById('guide-modal').classList.remove('hidden'));
@@ -1607,7 +1784,8 @@ document.getElementById('assignment-file').addEventListener('change', (event) =>
   document.getElementById('assignment-file-name').textContent = event.target.files[0]?.name || 'Selecciona un archivo';
 });
 document.getElementById('submission-file').addEventListener('change', (event) => {
-  document.getElementById('submission-file-name').textContent = event.target.files[0]?.name || 'Selecciona tu entrega';
+  const currentFile = document.getElementById('submission-current-file').value;
+  document.getElementById('submission-file-name').textContent = event.target.files[0]?.name || (currentFile ? `Actual: ${submissionFileName(currentFile)}` : 'Selecciona tu entrega');
 });
 document.getElementById('workspace-new-course').addEventListener('click', () => openTeacherComposer('course'));
 document.getElementById('workspace-new-task').addEventListener('click', () => openTeacherComposer('task'));
@@ -1658,7 +1836,7 @@ document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
   closeTaskModal();
   closeNotificationCenter();
-  document.getElementById('submission-modal').classList.add('hidden');
+  closeSubmissionModal();
   document.getElementById('guide-modal').classList.add('hidden');
 });
 logoutButton.addEventListener('click', async () => {

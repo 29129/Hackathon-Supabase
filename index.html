@@ -157,7 +157,28 @@
             <section class="security-audit-panel"><div class="security-audit-heading"><div><span class="eyebrow">Trazabilidad</span><h2>Registro de auditoría</h2><p>Solo se muestran eventos pertenecientes a la sesión autenticada.</p></div><div class="security-audit-actions"><button class="secondary-button" id="refresh-security-audit" type="button">Actualizar</button><button class="secondary-button" id="export-security-audit" type="button">Exportar JSON</button></div></div><div class="security-audit-toolbar"><label><span>⌕</span><input id="security-audit-search" type="search" placeholder="Buscar acción o entidad" /></label><select id="security-audit-filter" aria-label="Filtrar auditoría"><option value="all">Todos los eventos</option><option value="security">Seguridad</option><option value="course">Cursos</option><option value="assignment">Tareas</option><option value="submission">Entregas</option><option value="grade">Calificaciones</option></select><span id="security-audit-count">0 eventos</span></div><div class="security-audit-list" id="security-audit-list"><div class="empty-state">Cargando actividad...</div></div></section>
           </section>
           <section class="task-modal hidden" id="task-modal" aria-label="Detalle de tarea"><div class="task-modal-card"><button class="task-modal-close" id="close-task-modal" type="button" aria-label="Cerrar">×</button><div id="task-modal-content"><div class="detail-loading"><span></span><p>Cargando tarea...</p></div></div></div></section>
-          <section class="submission-modal hidden" id="submission-modal" aria-label="Entregar tarea"><div class="submission-modal-card"><div class="panel-heading"><div><span class="eyebrow accent">Entrega privada</span><h2 id="submission-title">Entregar tarea</h2></div><button class="close-button" id="close-submission-modal" type="button">×</button></div><form id="submission-form"><input id="submission-assignment-id" type="hidden" /><label class="form-field">Comentario<textarea id="submission-content" rows="3" placeholder="Añade una nota para tu profesor (opcional)"></textarea></label><div class="form-field file-field"><span>Archivo de entrega</span><input class="file-input" id="submission-file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg" required /><label class="file-picker" for="submission-file"><span class="file-picker-icon">↑</span><span id="submission-file-name">Selecciona tu entrega</span><strong>Examinar</strong></label><small>Tu archivo solo será visible para ti y tu profesor.</small></div><button class="primary-button auth-submit" type="submit"><span>Enviar entrega</span><span>→</span></button><p class="form-feedback" id="submission-feedback"></p></form></div></section>
+          <section class="submission-modal hidden" id="submission-modal" aria-label="Crear o editar una entrega">
+            <div class="submission-modal-card">
+              <div class="panel-heading">
+                <div><span class="eyebrow accent" id="submission-modal-eyebrow">Entrega privada</span><h2 id="submission-title">Entregar tarea</h2></div>
+                <button class="close-button" id="close-submission-modal" type="button" aria-label="Cerrar entrega">×</button>
+              </div>
+              <form id="submission-form">
+                <input id="submission-assignment-id" type="hidden" />
+                <input id="submission-id" type="hidden" />
+                <input id="submission-current-file" type="hidden" />
+                <label class="form-field">Comentario<textarea id="submission-content" rows="3" placeholder="Añade una nota para tu profesor (opcional)"></textarea></label>
+                <div class="form-field file-field">
+                  <span id="submission-file-label">Archivo de entrega</span>
+                  <input class="file-input" id="submission-file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg" required />
+                  <label class="file-picker" for="submission-file"><span class="file-picker-icon">↑</span><span id="submission-file-name">Selecciona tu entrega</span><strong>Examinar</strong></label>
+                  <small id="submission-file-help">Tu archivo solo será visible para ti y tu profesor.</small>
+                </div>
+                <button class="primary-button auth-submit" type="submit"><span id="submission-submit-label">Enviar entrega</span><span>→</span></button>
+                <p class="form-feedback" id="submission-feedback" aria-live="polite"></p>
+              </form>
+            </div>
+          </section>
         </div>
       </section>
     </main>
