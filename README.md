@@ -32,3 +32,7 @@ Se añadió `supabase/migrations/002_rls_policies.sql`. Esta migración habilita
 ## Sprint 5
 
 Se añadió el dashboard del profesor. Los usuarios con rol `teacher` pueden consultar sus cursos y crear nuevos cursos desde la interfaz. Las operaciones usan Supabase y quedan protegidas por las políticas RLS de la migración 002.
+
+## Sprint 6
+
+El dashboard del estudiante ahora carga cursos matriculados, tareas publicadas y calificaciones desde Supabase. También calcula el promedio general y muestra estados vacíos cuando el estudiante aún no tiene datos.

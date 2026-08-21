@@ -56,6 +56,79 @@ function showRoleView(role) {
   document.querySelector('.dashboard-grid').classList.toggle('hidden', isTeacher);
   document.getElementById('teacher-view').classList.toggle('hidden', !isTeacher);
   if (isTeacher) loadTeacherCourses();
+  else loadStudentDashboard();
+}
+
+function escapeHtml(value = '') {
+  return String(value).replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
+}
+
+function formatDueDate(value) {
+  if (!value) return 'Sin fecha';
+  const date = new Date(value);
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  if (date.toDateString() === tomorrow.toDateString()) return 'Mañana';
+  return date.toLocaleDateString('es-EC', { day: 'numeric', month: 'short' });
+}
+
+function subjectClass(subject = '') {
+  const first = subject.toLowerCase()[0] || 'a';
+  return first < 'h' ? 'orange' : first < 'r' ? 'violet' : 'teal';
+}
+
+async function loadStudentDashboard() {
+  if (!supabaseClient || !currentUser) return;
+  const taskList = document.getElementById('student-task-list');
+  const gradeList = document.getElementById('student-grade-list');
+  const { data: enrollments, error: enrollmentError } = await supabaseClient
+    .from('enrollments')
+    .select('course_id, courses (id, name, subject, status)')
+    .eq('student_id', currentUser.id);
+  if (enrollmentError) {
+    taskList.innerHTML = `<div class="empty-state">No se pudieron cargar tus cursos.</div>`;
+    return;
+  }
+  const courses = (enrollments || []).map((item) => item.courses).filter(Boolean).filter((course) => course.status === 'active');
+  document.getElementById('course-count-stat').textContent = courses.length;
+  const courseIds = courses.map((course) => course.id);
+  if (!courseIds.length) {
+    document.getElementById('pending-count').textContent = '0';
+    document.getElementById('average-stat').innerHTML = '— <em>/ 10</em>';
+    taskList.innerHTML = '<div class="empty-state">Aún no estás matriculado en cursos.</div>';
+    gradeList.innerHTML = '<div class="empty-state">Tus calificaciones aparecerán aquí.</div>';
+    return;
+  }
+
+  const { data: assignments, error: assignmentError } = await supabaseClient
+    .from('assignments')
+    .select('id, course_id, title, due_at, status, courses (name, subject)')
+    .in('course_id', courseIds)
+    .eq('status', 'published')
+    .order('due_at', { ascending: true });
+  if (assignmentError) {
+    taskList.innerHTML = '<div class="empty-state">No se pudieron cargar las tareas.</div>';
+    return;
+  }
+  const openAssignments = assignments || [];
+  document.getElementById('pending-count').textContent = openAssignments.length;
+  taskList.innerHTML = openAssignments.length
+    ? openAssignments.slice(0, 4).map((assignment) => `<div class="task-row"><span class="subject-tag ${subjectClass(assignment.courses?.subject)}">${escapeHtml((assignment.courses?.subject || 'CUR').slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(assignment.title)}</strong><small>${escapeHtml(assignment.courses?.name || 'Curso')}</small></div><span class="due">${formatDueDate(assignment.due_at)}</span></div>`).join('')
+    : '<div class="empty-state">No tienes tareas pendientes.</div>';
+
+  const { data: submissions } = await supabaseClient.from('submissions').select('id, assignment_id').eq('student_id', currentUser.id);
+  const submissionIds = (submissions || []).map((submission) => submission.id);
+  const { data: grades } = submissionIds.length
+    ? await supabaseClient.from('grades').select('score, feedback, submission_id, submissions (assignment_id, assignments (title, courses (name, subject)))').in('submission_id', submissionIds).order('graded_at', { ascending: false })
+    : { data: [] };
+  const gradeRows = grades || [];
+  const scores = gradeRows.map((grade) => Number(grade.score)).filter((score) => Number.isFinite(score));
+  const average = scores.length ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1) : '—';
+  document.getElementById('average-stat').innerHTML = `${average} <em>/ 10</em>`;
+  gradeList.innerHTML = gradeRows.length
+    ? gradeRows.slice(0, 4).map((grade) => `<div class="grade-row"><span class="subject-tag ${subjectClass(grade.submissions?.assignments?.courses?.subject)}">${escapeHtml((grade.submissions?.assignments?.courses?.subject || 'CUR').slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(grade.submissions?.assignments?.title || 'Actividad')}</strong><small>${escapeHtml(grade.submissions?.assignments?.courses?.name || 'Curso')}</small></div><b class="grade">${Number(grade.score).toFixed(1)}</b></div>`).join('')
+    : '<div class="empty-state">Todavía no tienes calificaciones.</div>';
 }
 
 function renderCourses(courses) {
