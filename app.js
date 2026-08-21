@@ -26,6 +26,7 @@ let securityAuditRows = [];
 let securitySuiteRunning = false;
 let notificationItems = [];
 let notificationFilter = 'all';
+let activeGuideRole = 'student';
 
 function showToast(message) {
   const toast = document.getElementById('app-toast');
@@ -1707,6 +1708,85 @@ function setAuthMode(mode) {
   showMessage('');
 }
 
+const demoGuides = {
+  teacher: {
+    title: 'Guía del profesor',
+    subtitle: 'Recorrido completo para administrar el aula y demostrar la seguridad ante los jurados.',
+    steps: [
+      ['Crear un curso', 'Define nombre, materia y descripción del nuevo espacio académico.', 'new-course', 'Crear'],
+      ['Agregar estudiantes', 'Abre el curso y autoriza manualmente una cuenta mediante su correo.', 'courses', 'Gestionar'],
+      ['Publicar una tarea', 'Añade instrucciones, fecha y un archivo protegido por Storage.', 'new-task', 'Publicar'],
+      ['Revisar y calificar', 'Consulta entregas privadas y publica nota con retroalimentación.', 'submissions', 'Revisar'],
+      ['Consultar estadísticas', 'Muestra promedio, pendientes y participación calculados por curso.', 'analytics', 'Ver panel'],
+      ['Demostrar RLS', 'Ejecuta la prueba real de acceso ajeno bloqueado y revisa la auditoría.', 'security', 'Probar']
+    ]
+  },
+  student: {
+    title: 'Guía del estudiante',
+    subtitle: 'Recorrido para consultar cursos, entregar trabajos y comprobar que los datos son privados.',
+    steps: [
+      ['Confirmar acceso', 'El curso aparece cuando el profesor registra tu correo institucional.', 'courses', 'Ver cursos'],
+      ['Revisar tareas', 'Consulta instrucciones, fecha de entrega y materiales autorizados.', 'tasks', 'Ver tareas'],
+      ['Enviar o editar', 'Sube tu archivo y edítalo mientras la tarea siga abierta y sin nota.', 'tasks', 'Entregar'],
+      ['Abrir materiales', 'Accede a archivos privados mediante enlaces temporales de Storage.', 'files', 'Ver archivos'],
+      ['Consultar notas', 'Revisa calificaciones y retroalimentación visibles solo para tu cuenta.', 'grades', 'Ver notas'],
+      ['Demostrar RLS', 'Ejecuta la prueba de acceso restringido para evidenciar el bloqueo.', 'security', 'Probar']
+    ]
+  }
+};
+
+function renderDemoGuide(role) {
+  activeGuideRole = role === 'teacher' ? 'teacher' : 'student';
+  const guide = demoGuides[activeGuideRole];
+  const sessionRole = currentProfile.role || currentUser?.user_metadata?.role || 'student';
+  document.getElementById('guide-title').textContent = guide.title;
+  document.getElementById('guide-subtitle').textContent = guide.subtitle;
+  document.getElementById('guide-role-status').textContent = activeGuideRole === sessionRole
+    ? 'Acciones disponibles para tu sesión'
+    : `Vista previa · Inicia como ${activeGuideRole === 'teacher' ? 'profesor' : 'estudiante'} para ejecutar`;
+  document.querySelectorAll('[data-guide-role]').forEach((button) => {
+    const active = button.dataset.guideRole === activeGuideRole;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
+  document.getElementById('guide-steps').innerHTML = guide.steps.map(([title, copy, action, cta], index) => `<button class="guide-step" type="button" data-guide-action="${action}" data-guide-step-role="${activeGuideRole}"><b>${String(index + 1).padStart(2, '0')}</b><div><strong>${escapeHtml(title)}</strong><p>${escapeHtml(copy)}</p></div><span>${escapeHtml(cta)} →</span></button>`).join('');
+}
+
+function openDemoGuide() {
+  const sessionRole = currentProfile.role || currentUser?.user_metadata?.role || 'student';
+  renderDemoGuide(sessionRole);
+  document.getElementById('guide-modal').classList.remove('hidden');
+}
+
+function closeDemoGuide() {
+  document.getElementById('guide-modal').classList.add('hidden');
+}
+
+function handleGuideAction(button) {
+  const sessionRole = currentProfile.role || currentUser?.user_metadata?.role || 'student';
+  const guideRole = button.dataset.guideStepRole;
+  if (guideRole !== sessionRole) {
+    showToast(`Esta acción requiere una cuenta de ${guideRole === 'teacher' ? 'profesor' : 'estudiante'}.`);
+    return;
+  }
+  const action = button.dataset.guideAction;
+  closeDemoGuide();
+  if (action === 'new-course') openTeacherComposer('course');
+  else if (action === 'new-task') openTeacherComposer('task');
+  else if (action === 'submissions') focusTeacherSubmissions();
+  else if (action === 'analytics') {
+    navigateView('overview');
+    window.setTimeout(() => document.querySelector('.teacher-analytics-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  } else if (action === 'grades') {
+    navigateView('overview');
+    window.setTimeout(() => document.getElementById('student-grades-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  } else if (action === 'security') openSecurityConsole();
+  else if (['courses', 'tasks', 'files'].includes(action)) {
+    navigateView(action);
+    if (action === 'courses' && sessionRole === 'teacher') showToast('Abre un curso para gestionar sus estudiantes.');
+  }
+}
+
 modeTabs.forEach((tab) => tab.addEventListener('click', () => setAuthMode(tab.dataset.authMode)));
 authForm.addEventListener('submit', handleAuth);
 document.getElementById('course-form').addEventListener('submit', createCourse);
@@ -1830,10 +1910,14 @@ document.getElementById('task-modal').addEventListener('click', (event) => {
   if (deleteButton) deleteAssignment(deleteButton);
 });
 document.getElementById('task-modal').addEventListener('submit', updateAssignment);
-document.getElementById('open-guide').addEventListener('click', () => document.getElementById('guide-modal').classList.remove('hidden'));
-document.getElementById('close-guide').addEventListener('click', () => document.getElementById('guide-modal').classList.add('hidden'));
+document.getElementById('open-guide').addEventListener('click', openDemoGuide);
+document.getElementById('close-guide').addEventListener('click', closeDemoGuide);
 document.getElementById('guide-modal').addEventListener('click', (event) => {
-  if (event.target.id === 'guide-modal') event.currentTarget.classList.add('hidden');
+  if (event.target.id === 'guide-modal') closeDemoGuide();
+  const roleButton = event.target.closest('[data-guide-role]');
+  if (roleButton) renderDemoGuide(roleButton.dataset.guideRole);
+  const actionButton = event.target.closest('[data-guide-action]');
+  if (actionButton) handleGuideAction(actionButton);
 });
 document.getElementById('assignment-file').addEventListener('change', (event) => {
   document.getElementById('assignment-file-name').textContent = event.target.files[0]?.name || 'Selecciona un archivo';
@@ -1892,7 +1976,7 @@ document.addEventListener('keydown', (event) => {
   closeTaskModal();
   closeNotificationCenter();
   closeSubmissionModal();
-  document.getElementById('guide-modal').classList.add('hidden');
+  closeDemoGuide();
 });
 logoutButton.addEventListener('click', async () => {
   if (supabaseClient) await supabaseClient.auth.signOut();

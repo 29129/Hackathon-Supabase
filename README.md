@@ -62,6 +62,7 @@ La autorización no depende de la interfaz. Cada consulta pasa por políticas RL
 
 ### Para la demostración de seguridad
 
+- Guía interactiva diferenciada para profesor y estudiante con accesos directos al recorrido.
 - Consola accesible desde el indicador **RLS activa**.
 - Verificación de sesión y token de Supabase Auth.
 - Lectura permitida del perfil propio.

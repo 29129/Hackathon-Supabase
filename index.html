@@ -203,7 +203,14 @@
         <footer class="notification-footer"><span>✓</span><p><strong>Privacidad por diseño</strong><br />Solo recibes novedades de filas permitidas por RLS.</p><button id="notification-open-security" type="button">Ver seguridad →</button></footer>
       </aside>
     </section>
-    <section class="guide-modal hidden" id="guide-modal" aria-label="Guía de demostración"><div class="guide-card"><div class="panel-heading"><div><span class="eyebrow accent">AulaSegura en 60 segundos</span><h2>Así funciona la seguridad</h2></div><button class="close-button" id="close-guide" type="button">×</button></div><div class="guide-steps"><div><b>01</b><p><strong>Identidad</strong><br />Cada usuario entra con su cuenta y rol.</p></div><div><b>02</b><p><strong>Acceso por fila</strong><br />Cada estudiante ve solo sus datos.</p></div><div><b>03</b><p><strong>Prueba en vivo</strong><br />El botón de acceso restringido demuestra el bloqueo.</p></div></div><div class="guide-footer"><span class="status-dot"></span> Auth · RLS · Storage · Auditoría</div></div></section>
+    <section class="guide-modal hidden" id="guide-modal" aria-label="Guía de demostración por rol">
+      <div class="guide-card">
+        <div class="panel-heading"><div><span class="eyebrow accent">Recorrido para jurados</span><h2 id="guide-title">Guía de demostración</h2><p class="guide-subtitle" id="guide-subtitle">Selecciona un rol para ver su recorrido.</p></div><button class="close-button" id="close-guide" type="button" aria-label="Cerrar guía">×</button></div>
+        <div class="guide-role-tabs" role="tablist" aria-label="Rol de la guía"><button type="button" data-guide-role="teacher" role="tab">Profesor</button><button type="button" data-guide-role="student" role="tab">Estudiante</button></div>
+        <div class="guide-steps" id="guide-steps"></div>
+        <div class="guide-footer"><span><i class="status-dot"></i> Auth · RLS · Storage · Auditoría</span><strong id="guide-role-status">Guía adaptada a tu sesión</strong></div>
+      </div>
+    </section>
     <div class="toast" id="app-toast" role="status"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
