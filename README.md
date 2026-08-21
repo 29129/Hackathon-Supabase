@@ -40,3 +40,7 @@ El dashboard del estudiante ahora carga cursos matriculados, tareas publicadas y
 ## Sprint 7
 
 Se añadió `supabase/migrations/003_storage_policies.sql`, que crea el bucket privado `course-files` y restringe la lectura y escritura según la pertenencia al curso. El profesor podrá adjuntar materiales y el estudiante los abrirá mediante URLs firmadas.
+
+## Sprint 8
+
+Se añadió `supabase/migrations/004_submissions_policies.sql`. El estudiante puede enviar una entrega privada y el profesor puede revisar el archivo y registrar una calificación. La interfaz también muestra entregas pendientes y notas publicadas.
