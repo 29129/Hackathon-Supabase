@@ -44,6 +44,7 @@ La autorización no depende de la interfaz. Cada consulta pasa por políticas RL
 - Edición, cierre y eliminación confirmada de actividades.
 - Archivos de clase almacenados en un bucket privado.
 - Seguimiento de matrículas, entregas y fechas próximas.
+- Panel de estadísticas con promedio general, entregas pendientes y participación por curso.
 - Calificación sobre 10 con retroalimentación editable.
 - Centro de notificaciones con entregas pendientes.
 

@@ -881,6 +881,27 @@ async function loadTeacherCourses() {
   ]);
 }
 
+function updateTeacherAnalytics({ average = null, gradeCount = 0, expected = 0, received = 0, pending = 0, participants = 0, enrollmentCount = 0 } = {}) {
+  const averageValue = Number.isFinite(average) ? average : null;
+  const deliveryRate = expected ? Math.min(100, Math.round((received / expected) * 100)) : 0;
+  const participationRate = enrollmentCount ? Math.min(100, Math.round((participants / enrollmentCount) * 100)) : 0;
+  document.getElementById('teacher-analytics-average').textContent = averageValue === null ? '—' : averageValue.toFixed(1);
+  document.getElementById('teacher-analytics-average-copy').textContent = gradeCount
+    ? `${gradeCount} ${gradeCount === 1 ? 'calificación publicada' : 'calificaciones publicadas'}`
+    : 'Esperando calificaciones';
+  document.getElementById('teacher-analytics-pending').textContent = pending;
+  document.getElementById('teacher-analytics-pending-copy').textContent = expected
+    ? `${received} de ${expected} entregas recibidas`
+    : 'Sin actividades abiertas';
+  document.getElementById('teacher-analytics-participation').textContent = `${participationRate}%`;
+  document.getElementById('teacher-analytics-participation-copy').textContent = enrollmentCount
+    ? `${participants} de ${enrollmentCount} matrículas activas`
+    : 'Sin estudiantes activos';
+  document.getElementById('teacher-analytics-average-bar').style.width = `${averageValue === null ? 0 : Math.min(100, averageValue * 10)}%`;
+  document.getElementById('teacher-analytics-delivery-bar').style.width = `${deliveryRate}%`;
+  document.getElementById('teacher-analytics-participation-bar').style.width = `${participationRate}%`;
+}
+
 async function loadTeacherOverview(courses) {
   const insights = document.getElementById('teacher-course-insights');
   const deadlines = document.getElementById('teacher-deadline-list');
@@ -893,6 +914,7 @@ async function loadTeacherOverview(courses) {
     document.getElementById('teacher-stat-tasks').textContent = '0';
     document.getElementById('teacher-stat-drafts').textContent = 'Sin tareas todavía';
     document.getElementById('teacher-stat-pending').textContent = '0';
+    updateTeacherAnalytics();
     insights.innerHTML = '<div class="empty-state">Crea tu primer curso para comenzar el seguimiento.</div>';
     deadlines.innerHTML = '<div class="empty-state">La agenda aparecerá cuando publiques tareas.</div>';
     setNotificationItems([]);
@@ -921,6 +943,32 @@ async function loadTeacherOverview(courses) {
     }
     const pendingReviews = submissions.filter((submission) => !relatedOne(submission.grades)).length;
     const draftCount = assignments.filter((assignment) => assignment.status === 'draft').length;
+    const activeCourseIds = new Set(activeCourses.map((course) => course.id));
+    const activeEnrollments = enrollments.filter((enrollment) => activeCourseIds.has(enrollment.course_id));
+    const activeEnrollmentKeys = new Set(activeEnrollments.map((enrollment) => `${enrollment.course_id}:${enrollment.student_id}`));
+    const assignmentMap = new Map(assignments.map((assignment) => [assignment.id, assignment]));
+    const activeSubmissions = submissions.filter((submission) => activeCourseIds.has(assignmentMap.get(submission.assignment_id)?.course_id));
+    const activeScores = activeSubmissions.map((submission) => Number(relatedOne(submission.grades)?.score)).filter(Number.isFinite);
+    const averageScore = activeScores.length ? activeScores.reduce((total, score) => total + score, 0) / activeScores.length : null;
+    const openAssignments = assignments.filter((assignment) => assignment.status === 'published' && activeCourseIds.has(assignment.course_id));
+    const openAssignmentIds = new Set(openAssignments.map((assignment) => assignment.id));
+    const enrollmentCountByCourse = new Map(activeCourses.map((course) => [course.id, activeEnrollments.filter((enrollment) => enrollment.course_id === course.id).length]));
+    const expectedSubmissions = openAssignments.reduce((total, assignment) => total + (enrollmentCountByCourse.get(assignment.course_id) || 0), 0);
+    const receivedOpenSubmissions = activeSubmissions.filter((submission) => openAssignmentIds.has(submission.assignment_id)).length;
+    const pendingDeliveries = Math.max(0, expectedSubmissions - receivedOpenSubmissions);
+    const participantKeys = new Set(activeSubmissions.map((submission) => {
+      const assignment = assignmentMap.get(submission.assignment_id);
+      return `${assignment?.course_id}:${submission.student_id}`;
+    }).filter((key) => activeEnrollmentKeys.has(key)));
+    updateTeacherAnalytics({
+      average: averageScore,
+      gradeCount: activeScores.length,
+      expected: expectedSubmissions,
+      received: receivedOpenSubmissions,
+      pending: pendingDeliveries,
+      participants: participantKeys.size,
+      enrollmentCount: activeEnrollments.length
+    });
     document.getElementById('teacher-stat-students').textContent = enrollments.length;
     document.getElementById('teacher-stat-tasks').textContent = assignments.length;
     document.getElementById('teacher-stat-drafts').textContent = `${draftCount} ${draftCount === 1 ? 'borrador' : 'borradores'}`;
@@ -947,14 +995,21 @@ async function loadTeacherOverview(courses) {
       const courseAssignments = assignments.filter((assignment) => assignment.course_id === course.id);
       const courseAssignmentIds = new Set(courseAssignments.map((assignment) => assignment.id));
       const courseSubmissions = submissions.filter((submission) => courseAssignmentIds.has(submission.assignment_id));
-      const graded = courseSubmissions.filter((submission) => relatedOne(submission.grades)).length;
-      const pending = courseSubmissions.length - graded;
-      const progress = courseSubmissions.length ? Math.round((graded / courseSubmissions.length) * 100) : 0;
-      const members = enrollments.filter((enrollment) => enrollment.course_id === course.id).length;
-      return `<article class="teacher-insight-row ${course.status === 'archived' ? 'archived' : ''}"><div class="teacher-insight-top"><span class="course-icon small">${escapeHtml(course.subject.slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(course.name)}</strong><small>${members} ${members === 1 ? 'estudiante' : 'estudiantes'} · ${courseAssignments.length} ${courseAssignments.length === 1 ? 'tarea' : 'tareas'}</small></div><button class="course-open-button" type="button" data-open-course="${course.id}">Abrir →</button></div><div class="teacher-progress-meta"><span>${courseSubmissions.length ? `${graded} de ${courseSubmissions.length} calificadas` : 'Sin entregas todavía'}</span><strong>${pending} pendientes</strong></div><div class="teacher-progress-track"><span style="width:${progress}%"></span></div></article>`;
+      const courseEnrollments = enrollments.filter((enrollment) => enrollment.course_id === course.id);
+      const memberIds = new Set(courseEnrollments.map((enrollment) => enrollment.student_id));
+      const members = courseEnrollments.length;
+      const courseScores = courseSubmissions.map((submission) => Number(relatedOne(submission.grades)?.score)).filter(Number.isFinite);
+      const courseAverage = courseScores.length ? (courseScores.reduce((total, score) => total + score, 0) / courseScores.length).toFixed(1) : '—';
+      const participantCount = new Set(courseSubmissions.filter((submission) => memberIds.has(submission.student_id)).map((submission) => submission.student_id)).size;
+      const participation = members ? Math.round((participantCount / members) * 100) : 0;
+      const courseOpenAssignments = course.status === 'active' ? courseAssignments.filter((assignment) => assignment.status === 'published') : [];
+      const courseOpenAssignmentIds = new Set(courseOpenAssignments.map((assignment) => assignment.id));
+      const expected = courseOpenAssignments.length * members;
+      const received = courseSubmissions.filter((submission) => courseOpenAssignmentIds.has(submission.assignment_id)).length;
+      const pending = Math.max(0, expected - received);
+      return `<article class="teacher-insight-row ${course.status === 'archived' ? 'archived' : ''}"><div class="teacher-insight-top"><span class="course-icon small">${escapeHtml(course.subject.slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(course.name)}</strong><small>${members} ${members === 1 ? 'estudiante' : 'estudiantes'} · ${courseAssignments.length} ${courseAssignments.length === 1 ? 'tarea' : 'tareas'}</small></div><button class="course-open-button" type="button" data-open-course="${course.id}">Abrir →</button></div><div class="teacher-course-kpis"><span>Promedio<strong>${courseAverage}</strong></span><span>Participación<strong>${participation}%</strong></span><span>Pendientes<strong class="${pending ? 'warning' : ''}">${pending}</strong></span></div><div class="teacher-progress-meta"><span>${participantCount} de ${members} estudiantes participaron</span><strong>${expected ? `${received}/${expected} entregas` : 'Sin tareas abiertas'}</strong></div><div class="teacher-progress-track participation"><span style="width:${participation}%"></span></div></article>`;
     }).join('');
 
-    const activeCourseIds = new Set(activeCourses.map((course) => course.id));
     const courseMap = new Map(courses.map((course) => [course.id, course]));
     const agenda = assignments.filter((assignment) => assignment.status === 'published' && assignment.due_at && activeCourseIds.has(assignment.course_id)).sort((a, b) => new Date(a.due_at) - new Date(b.due_at)).slice(0, 5);
     deadlines.innerHTML = agenda.length ? agenda.map((assignment) => {
@@ -963,6 +1018,7 @@ async function loadTeacherOverview(courses) {
       return `<article class="teacher-deadline-row"><span class="deadline-date ${overdue ? 'overdue' : ''}">${escapeHtml(formatDueDate(assignment.due_at))}</span><div><strong>${escapeHtml(assignment.title)}</strong><small>${escapeHtml(course?.name || 'Curso')}</small></div><button class="task-detail-button" type="button" data-edit-assignment="${assignment.id}">Editar</button></article>`;
     }).join('') : '<div class="empty-state">No hay fechas de entrega programadas.</div>';
   } catch (error) {
+    updateTeacherAnalytics();
     insights.innerHTML = `<div class="empty-state">No se pudo calcular el progreso: ${escapeHtml(error.message)}</div>`;
     deadlines.innerHTML = '<div class="empty-state">No se pudo cargar la agenda.</div>';
     setNotificationItems([]);
