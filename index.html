@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="AulaSegura: portal académico privado para colegios." />
+    <title>AulaSegura | Portal académico</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section class="auth-screen" id="auth-screen">
+      <div class="auth-visual">
+        <div class="auth-brand"><div class="brand-mark">A</div><strong>AulaSegura</strong></div>
+        <div class="auth-message">
+          <span class="eyebrow">Aprender con confianza</span>
+          <h1>Tu progreso académico,<br /><span>solo para ti.</span></h1>
+          <p>Un espacio privado para conectar estudiantes y profesores con la seguridad que sus datos merecen.</p>
+        </div>
+        <div class="auth-proof"><span>✓</span> Tus datos están protegidos por políticas de acceso</div>
+      </div>
+      <div class="auth-panel">
+        <div class="auth-card">
+          <span class="eyebrow accent">Portal académico privado</span>
+          <h2 id="auth-title">Bienvenido de nuevo</h2>
+          <p class="auth-subtitle" id="auth-subtitle">Ingresa para continuar con tus clases.</p>
+          <div class="auth-tabs"><button class="auth-tab active" data-auth-mode="login">Iniciar sesión</button><button class="auth-tab" data-auth-mode="signup">Crear cuenta</button></div>
+          <form id="auth-form">
+            <label class="form-field signup-only hidden">Nombre completo<input id="full-name" type="text" placeholder="Ej. Lucía Martínez" autocomplete="name" /></label>
+            <label class="form-field">Correo institucional<input id="email" type="email" placeholder="tu.nombre@colegio.edu" autocomplete="email" required /></label>
+            <label class="form-field">Contraseña<input id="password" type="password" placeholder="Mínimo 6 caracteres" autocomplete="current-password" required minlength="6" /></label>
+            <label class="form-field signup-only hidden">Soy...<select id="role"><option value="student">Estudiante</option><option value="teacher">Profesor/a</option></select></label>
+            <button class="primary-button auth-submit" type="submit"><span id="auth-submit-label">Entrar al portal</span><span>→</span></button>
+          </form>
+          <p class="auth-feedback" id="auth-feedback" role="status"></p>
+          <p class="auth-footnote">Al continuar aceptas el uso seguro de tu información académica.</p>
+        </div>
+      </div>
+    </section>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">A</div>
+          <div>
+            <span class="eyebrow">Portal privado</span>
+            <strong>AulaSegura</strong>
+          </div>
+        </div>
+
+        <nav class="main-nav" aria-label="Navegación principal">
+          <button class="nav-item active" data-view="overview"><span>⌂</span> Resumen</button>
+          <button class="nav-item" data-view="courses"><span>▣</span> Mis cursos</button>
+          <button class="nav-item" data-view="tasks"><span>✓</span> Tareas</button>
+          <button class="nav-item" data-view="files"><span>□</span> Archivos</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="security-note"><span class="status-dot"></span><span>Datos protegidos por fila</span></div>
+          <button class="profile-chip" type="button">
+            <span class="avatar">LM</span>
+            <span><strong>Lucía Martínez</strong><small>Estudiante</small></span>
+            <span class="more">•••</span>
+          </button>
+        </div>
+      </aside>
+
+      <section class="content">
+        <header class="topbar">
+          <div class="mobile-brand"><div class="brand-mark">A</div><strong>AulaSegura</strong></div>
+          <div class="topbar-actions">
+            <button class="icon-button" aria-label="Notificaciones">♢<span class="notification-dot"></span></button>
+            <div class="date-label">Viernes, 21 de agosto de 2026</div>
+            <button class="logout-button hidden" id="logout-button">Cerrar sesión</button>
+          </div>
+        </header>
+
+        <div class="page" id="app-view">
+          <div class="page-heading">
+            <div>
+              <span class="eyebrow accent">Panel del estudiante</span>
+              <h1>Buenos días, Lucía <span>✦</span></h1>
+              <p id="welcome-copy">Aquí tienes un vistazo de tu actividad académica.</p>
+            </div>
+            <button class="primary-button" data-view="tasks">Ver mis tareas <span>→</span></button>
+          </div>
+
+          <section class="stats-grid" aria-label="Resumen académico">
+            <article class="stat-card blue"><span class="stat-icon">▣</span><div><small>Cursos activos</small><strong>4</strong></div><span class="trend">+1 este periodo</span></article>
+            <article class="stat-card lilac"><span class="stat-icon">✓</span><div><small>Tareas pendientes</small><strong>3</strong></div><span class="trend warning">Para esta semana</span></article>
+            <article class="stat-card mint"><span class="stat-icon">★</span><div><small>Promedio general</small><strong>9.2 <em>/ 10</em></strong></div><span class="trend">↑ 0.4 vs. anterior</span></article>
+          </section>
+
+          <section class="dashboard-grid">
+            <article class="panel tasks-panel">
+              <div class="panel-heading"><div><span class="eyebrow">Próximos pendientes</span><h2>Tareas por entregar</h2></div><button class="text-button" data-view="tasks">Ver todas →</button></div>
+              <div class="task-list">
+                <div class="task-row"><span class="subject-tag orange">MAT</span><div><strong>Funciones cuadráticas</strong><small>Matemáticas · Prof. Andrés Ruiz</small></div><span class="due urgent">Mañana</span></div>
+                <div class="task-row"><span class="subject-tag violet">HIS</span><div><strong>Ensayo: La Gran Colombia</strong><small>Historia · Prof. Elena Torres</small></div><span class="due">23 ago</span></div>
+                <div class="task-row"><span class="subject-tag teal">BIO</span><div><strong>Informe de laboratorio</strong><small>Biología · Prof. Diego León</small></div><span class="due">25 ago</span></div>
+              </div>
+            </article>
+
+            <article class="panel activity-panel">
+              <div class="panel-heading"><div><span class="eyebrow">Tu actividad</span><h2>Últimas calificaciones</h2></div><button class="text-button">Este periodo⌄</button></div>
+              <div class="grade-list"><div class="grade-row"><span class="subject-tag violet">HIS</span><div><strong>Control de lectura</strong><small>Historia</small></div><b class="grade">9.5</b></div><div class="grade-row"><span class="subject-tag teal">BIO</span><div><strong>Quiz: célula animal</strong><small>Biología</small></div><b class="grade">9.0</b></div><div class="grade-row"><span class="subject-tag orange">MAT</span><div><strong>Polinomios</strong><small>Matemáticas</small></div><b class="grade">8.8</b></div></div>
+              <div class="privacy-callout"><span>✦</span><p><strong>Tu información es privada</strong><br />Solo tú y tus profesores pueden verla.</p></div>
+            </article>
+          </section>
+
+          <section class="teacher-view hidden" id="teacher-view">
+            <div class="page-heading teacher-heading">
+              <div><span class="eyebrow accent">Panel del profesor</span><h1>Mis cursos <span>✦</span></h1><p>Administra tus clases y comparte actividades con tus estudiantes.</p></div>
+              <button class="primary-button" id="new-course-button">Nuevo curso <span>＋</span></button>
+            </div>
+            <div class="teacher-layout">
+              <article class="panel courses-panel"><div class="panel-heading"><div><span class="eyebrow">Espacio docente</span><h2>Cursos activos</h2></div><span class="course-count" id="course-count">0 cursos</span></div><div class="course-list" id="course-list"><div class="empty-state">Cargando tus cursos...</div></div></article>
+              <article class="panel course-form-panel hidden" id="course-form-panel"><div class="panel-heading"><div><span class="eyebrow">Crear contenido</span><h2>Nuevo curso</h2></div><button class="close-button" id="close-course-form" type="button">×</button></div><form id="course-form"><label class="form-field">Nombre del curso<input id="course-name" required placeholder="Ej. Matemáticas 10°" /></label><label class="form-field">Materia<input id="course-subject" required placeholder="Ej. Matemáticas" /></label><label class="form-field">Descripción<textarea id="course-description" rows="4" placeholder="¿Qué aprenderán tus estudiantes?"></textarea></label><button class="primary-button auth-submit" type="submit"><span>Crear curso</span><span>→</span></button><p class="form-feedback" id="course-feedback"></p></form></article>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
