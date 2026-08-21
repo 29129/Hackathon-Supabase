@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="AulaSegura: portal académico privado para colegios." />
     <title>AulaSegura | Portal académico</title>
+    <link rel="icon" type="image/svg+xml" href="assets/aulasegura-logo.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
@@ -13,7 +14,7 @@
   <body>
     <section class="auth-screen" id="auth-screen">
       <div class="auth-visual">
-        <div class="auth-brand"><div class="brand-mark">A</div><strong>AulaSegura</strong></div>
+        <div class="auth-brand"><span class="brand-mark"><img src="assets/aulasegura-logo.svg" alt="" /></span><strong>AulaSegura</strong></div>
         <div class="auth-message">
           <span class="eyebrow">Aprender con confianza</span>
           <h1>Tu progreso académico,<br /><span>solo para ti.</span></h1>
@@ -42,7 +43,7 @@
     <main class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">A</div>
+          <span class="brand-mark"><img src="assets/aulasegura-logo.svg" alt="" /></span>
           <div>
             <span class="eyebrow">Portal privado</span>
             <strong>AulaSegura</strong>
@@ -58,7 +59,7 @@
 
         <div class="sidebar-footer">
           <div class="security-note"><span class="status-dot"></span><span>Datos protegidos por fila</span></div>
-          <button class="profile-chip" type="button">
+          <button class="profile-chip" id="profile-button" type="button">
             <span class="avatar">LM</span>
             <span><strong>Lucía Martínez</strong><small>Estudiante</small></span>
             <span class="more">•••</span>
@@ -68,11 +69,12 @@
 
       <section class="content">
         <header class="topbar">
-          <div class="mobile-brand"><div class="brand-mark">A</div><strong>AulaSegura</strong></div>
+          <div class="mobile-brand"><span class="brand-mark"><img src="assets/aulasegura-logo.svg" alt="" /></span><strong>AulaSegura</strong></div>
           <div class="topbar-actions">
-            <span class="rls-badge"><span class="status-dot"></span> RLS activa</span>
+            <button class="rls-badge" id="open-security-console" type="button" aria-label="Abrir consola de seguridad"><span class="status-dot"></span> RLS activa</button>
+            <button class="theme-button" id="theme-toggle" type="button" aria-label="Cambiar a modo oscuro">◐ <span>Modo oscuro</span></button>
             <button class="guide-button" id="open-guide" type="button">Guía de demo</button>
-            <button class="icon-button" aria-label="Notificaciones">♢<span class="notification-dot"></span></button>
+            <button class="icon-button notifications-trigger" id="notifications-button" type="button" aria-label="Abrir notificaciones" aria-controls="notification-center" aria-expanded="false"><span aria-hidden="true">♢</span><span class="notification-count hidden" id="notification-count">0</span></button>
             <div class="date-label">Viernes, 21 de agosto de 2026</div>
             <button class="logout-button hidden" id="logout-button">Cerrar sesión</button>
           </div>
@@ -87,6 +89,7 @@
             </div>
             <button class="primary-button" data-view="tasks">Ver mis tareas <span>→</span></button>
           </div>
+          <div class="role-help" id="role-help"><span>i</span><p><strong>Estás en modo estudiante.</strong> Para crear cursos y publicar tareas, cierra sesión e ingresa con una cuenta de profesor.</p></div>
 
           <section class="stats-grid" aria-label="Resumen académico">
             <article class="stat-card blue"><span class="stat-icon">▣</span><div><small>Cursos activos</small><strong id="course-count-stat">—</strong></div><span class="trend">Este periodo</span></article>
@@ -95,7 +98,7 @@
           </section>
 
           <section class="dashboard-grid">
-            <article class="panel tasks-panel">
+            <article class="panel tasks-panel" id="student-tasks-panel">
               <div class="panel-heading"><div><span class="eyebrow">Próximos pendientes</span><h2>Tareas por entregar</h2></div><button class="text-button" data-view="tasks">Ver todas →</button></div>
               <div class="task-list" id="student-task-list">
                 <div class="task-row"><span class="subject-tag orange">MAT</span><div><strong>Funciones cuadráticas</strong><small>Matemáticas · Prof. Andrés Ruiz</small></div><span class="due urgent">Mañana</span></div>
@@ -104,8 +107,8 @@
               </div>
             </article>
 
-            <article class="panel activity-panel">
-              <div class="panel-heading"><div><span class="eyebrow">Tu actividad</span><h2>Últimas calificaciones</h2></div><button class="text-button">Este periodo⌄</button></div>
+            <article class="panel activity-panel" id="student-grades-panel">
+              <div class="panel-heading"><div><span class="eyebrow">Tu actividad</span><h2>Últimas calificaciones</h2></div><button class="text-button" id="period-toggle">Este periodo⌄</button></div>
               <div class="grade-list" id="student-grade-list"><div class="empty-state">Cargando calificaciones...</div></div>
               <div class="privacy-callout"><span>✦</span><p><strong>Tu información es privada</strong><br />Solo tú y tus profesores pueden verla.</p></div><button class="security-test-button" id="denied-access-test" type="button">Probar acceso restringido <span>→</span></button><p class="security-result" id="security-result"></p><div class="audit-section"><div class="audit-heading"><span class="eyebrow">Auditoría</span><strong>Actividad de seguridad</strong></div><div id="audit-list"><small>Sin actividad reciente.</small></div></div>
             </article>
@@ -116,17 +119,57 @@
               <div><span class="eyebrow accent">Panel del profesor</span><h1>Mis cursos <span>✦</span></h1><p>Administra tus clases y comparte actividades con tus estudiantes.</p></div>
               <button class="primary-button" id="new-course-button">Nuevo curso <span>＋</span></button>
             </div>
+            <section class="teacher-overview-stats" aria-label="Resumen docente">
+              <article class="teacher-metric purple"><span class="teacher-metric-icon">▣</span><div><small>Cursos activos</small><strong id="teacher-stat-courses">—</strong><em id="teacher-stat-archived">Cargando...</em></div></article>
+              <article class="teacher-metric coral"><span class="teacher-metric-icon">◎</span><div><small>Matrículas</small><strong id="teacher-stat-students">—</strong><em>Accesos autorizados</em></div></article>
+              <article class="teacher-metric mint"><span class="teacher-metric-icon">✓</span><div><small>Tareas creadas</small><strong id="teacher-stat-tasks">—</strong><em id="teacher-stat-drafts">Cargando...</em></div></article>
+              <article class="teacher-metric amber"><span class="teacher-metric-icon">◆</span><div><small>Por calificar</small><strong id="teacher-stat-pending">—</strong><button type="button" data-teacher-scroll-submissions>Revisar entregas →</button></div></article>
+            </section>
+            <section class="teacher-command-grid">
+              <article class="panel teacher-insights-panel"><div class="panel-heading"><div><span class="eyebrow">Seguimiento en vivo</span><h2>Progreso por curso</h2></div><button class="text-button" data-view="courses" type="button">Ver cursos →</button></div><div class="teacher-insight-list" id="teacher-course-insights"><div class="empty-state">Calculando progreso...</div></div></article>
+              <article class="panel teacher-deadlines-panel"><div class="panel-heading"><div><span class="eyebrow">Agenda docente</span><h2>Próximas fechas</h2></div><button class="text-button" data-teacher-new-task type="button">Nueva tarea ＋</button></div><div class="teacher-deadline-list" id="teacher-deadline-list"><div class="empty-state">Cargando agenda...</div></div></article>
+            </section>
             <div class="teacher-layout">
-              <article class="panel courses-panel"><div class="panel-heading"><div><span class="eyebrow">Espacio docente</span><h2>Cursos activos</h2></div><span class="course-count" id="course-count">0 cursos</span></div><div class="course-list" id="course-list"><div class="empty-state">Cargando tus cursos...</div></div></article>
+              <article class="panel courses-panel"><div class="panel-heading"><div><span class="eyebrow">Espacio docente</span><h2>Todos los cursos</h2></div><span class="course-count" id="course-count">0 cursos</span></div><div class="course-list" id="course-list"><div class="empty-state">Cargando tus cursos...</div></div></article>
               <article class="panel course-form-panel hidden" id="course-form-panel"><div class="panel-heading"><div><span class="eyebrow">Crear contenido</span><h2>Nuevo curso</h2></div><button class="close-button" id="close-course-form" type="button">×</button></div><form id="course-form"><label class="form-field">Nombre del curso<input id="course-name" required placeholder="Ej. Matemáticas 10°" /></label><label class="form-field">Materia<input id="course-subject" required placeholder="Ej. Matemáticas" /></label><label class="form-field">Descripción<textarea id="course-description" rows="4" placeholder="¿Qué aprenderán tus estudiantes?"></textarea></label><button class="primary-button auth-submit" type="submit"><span>Crear curso</span><span>→</span></button><p class="form-feedback" id="course-feedback"></p></form></article>
-              <article class="panel assignment-form-panel" id="assignment-form-panel"><div class="panel-heading"><div><span class="eyebrow">Material de clase</span><h2>Publicar tarea</h2></div></div><form id="assignment-form"><label class="form-field">Curso<select id="assignment-course" required><option value="">Selecciona un curso</option></select></label><label class="form-field">Título<input id="assignment-title" required placeholder="Ej. Investigación sobre ecosistemas" /></label><label class="form-field">Fecha de entrega<input id="assignment-due" type="date" /></label><label class="form-field file-field">Archivo adjunto<input id="assignment-file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg" /><small>Máximo recomendado: 10 MB</small></label><button class="primary-button auth-submit" type="submit"><span>Publicar tarea</span><span>→</span></button><p class="form-feedback" id="assignment-feedback"></p></form></article>
+              <article class="panel assignment-form-panel" id="assignment-form-panel"><div class="panel-heading"><div><span class="eyebrow">Actividad académica</span><h2>Crear tarea</h2></div></div><form id="assignment-form"><label class="form-field">Curso<select id="assignment-course" required><option value="">Selecciona un curso</option></select></label><label class="form-field">Título<input id="assignment-title" maxlength="100" required placeholder="Ej. Investigación sobre ecosistemas" /></label><label class="form-field">Instrucciones<textarea id="assignment-description" rows="4" maxlength="1200" required placeholder="Explica qué debe entregar el estudiante y cómo será evaluado."></textarea></label><div class="assignment-form-grid"><label class="form-field">Fecha de entrega<input id="assignment-due" type="date" required /></label><label class="form-field">Visibilidad<select id="assignment-status"><option value="published">Publicar ahora</option><option value="draft">Guardar borrador</option></select></label></div><div class="form-field file-field"><span>Material adjunto <em>Opcional</em></span><input class="file-input" id="assignment-file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg" /><label class="file-picker" for="assignment-file"><span class="file-picker-icon">↑</span><span id="assignment-file-name">Selecciona un archivo</span><strong>Examinar</strong></label><small>PDF, Office o imagen · Máximo 10 MB</small></div><button class="primary-button auth-submit" type="submit"><span>Guardar tarea</span><span>→</span></button><p class="form-feedback" id="assignment-feedback" aria-live="polite"></p></form></article>
               <article class="panel submissions-panel"><div class="panel-heading"><div><span class="eyebrow">Evaluación</span><h2>Últimas entregas</h2></div><span class="course-count">Privado</span></div><div class="submission-list" id="teacher-submission-list"><div class="empty-state">Cargando entregas...</div></div></article>
             </div>
           </section>
-          <section class="submission-modal hidden" id="submission-modal" aria-label="Entregar tarea"><div class="submission-modal-card"><div class="panel-heading"><div><span class="eyebrow accent">Entrega privada</span><h2 id="submission-title">Entregar tarea</h2></div><button class="close-button" id="close-submission-modal" type="button">×</button></div><form id="submission-form"><input id="submission-assignment-id" type="hidden" /><label class="form-field">Comentario<textarea id="submission-content" rows="3" placeholder="Añade una nota para tu profesor (opcional)"></textarea></label><label class="form-field file-field">Archivo de entrega<input id="submission-file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg" required /><small>Tu archivo solo será visible para ti y tu profesor.</small></label><button class="primary-button auth-submit" type="submit"><span>Enviar entrega</span><span>→</span></button><p class="form-feedback" id="submission-feedback"></p></form></div></section>
+          <section class="workspace-view hidden" id="workspace-courses"><div class="workspace-heading"><div><span class="eyebrow accent">Espacio académico</span><h1>Mis cursos <span>✦</span></h1><p>Consulta las clases a las que tienes acceso.</p></div><button class="primary-button workspace-create hidden" id="workspace-new-course" type="button">Crear curso <span>＋</span></button></div><form class="join-course-card hidden" id="join-course-form"><div><span class="eyebrow accent">Invitación segura</span><h2>Únete con un código</h2><p>Solicita el código de seis caracteres a tu profesor.</p></div><input id="join-course-code" minlength="6" maxlength="6" pattern="[A-Za-z0-9]{6}" inputmode="text" placeholder="Ej. A4B7C2" aria-label="Código de invitación del curso" autocomplete="off" required /><button class="primary-button" type="submit">Unirme <span>→</span></button><p class="form-feedback" id="join-course-feedback" aria-live="polite"></p></form><div class="workspace-grid" id="space-course-list"><div class="empty-state">Cargando cursos...</div></div></section>
+          <section class="workspace-view hidden" id="workspace-tasks"><div class="workspace-heading"><div><span class="eyebrow accent">Actividad académica</span><h1>Tareas <span>✓</span></h1><p>Revisa instrucciones, fechas y estado de cada actividad.</p></div><button class="primary-button workspace-create hidden" id="workspace-new-task" type="button">Nueva tarea <span>＋</span></button></div><div class="task-toolbar"><label class="task-search"><span>⌕</span><input id="task-search" type="search" placeholder="Buscar por tarea o curso" autocomplete="off" /></label><select id="task-status-filter" aria-label="Filtrar tareas"><option value="all">Todos los estados</option></select><span class="task-result-count" id="task-result-count">0 tareas</span></div><div class="workspace-list task-workspace-list" id="space-task-list"><div class="empty-state">Cargando tareas...</div></div><div class="filter-empty hidden" id="task-filter-empty">No hay tareas que coincidan con tu búsqueda.</div></section>
+          <section class="workspace-view hidden" id="workspace-files"><div class="workspace-heading"><div><span class="eyebrow accent">Material protegido</span><h1>Archivos <span>□</span></h1><p>Los materiales solo están disponibles para los miembros autorizados del curso.</p></div></div><div class="workspace-list" id="space-file-list"><div class="empty-state">Cargando archivos...</div></div></section>
+          <section class="workspace-view course-detail-view hidden" id="course-detail-view" aria-live="polite">
+            <button class="detail-back-button" id="course-detail-back" type="button">← Volver a Mis cursos</button>
+            <div id="course-detail-content"><div class="detail-loading"><span></span><p>Cargando espacio protegido...</p></div></div>
+          </section>
+          <section class="workspace-view security-console-view hidden" id="security-console-view">
+            <button class="detail-back-button" id="security-console-back" type="button">← Volver al resumen</button>
+            <section class="security-console-hero"><div><span class="security-console-icon">✓</span><span class="eyebrow">Centro de confianza</span><h1>Seguridad verificable</h1><p>Ejecuta comprobaciones reales contra Auth, RLS y Storage. Los resultados y acciones quedan registrados para la demo.</p></div><div class="security-identity"><span>Sesión protegida</span><strong id="security-identity-name">Usuario autenticado</strong><small id="security-identity-meta">Cargando identidad...</small><code id="security-user-id">••••••••</code></div></section>
+            <section class="security-suite-panel"><div class="security-suite-heading"><div><span class="eyebrow accent">Prueba en vivo</span><h2>5 controles automáticos</h2><p id="security-suite-summary" aria-live="polite">Listos para comprobar los permisos de esta cuenta.</p></div><button class="primary-button" id="run-security-suite" type="button">Ejecutar pruebas <span>→</span></button></div><div class="security-check-grid">
+              <article class="security-check" id="security-check-auth"><span class="security-check-icon">01</span><div><strong>Sesión Auth</strong><small>Valida que el token pertenezca al usuario actual.</small></div><b>Pendiente</b></article>
+              <article class="security-check" id="security-check-own"><span class="security-check-icon">02</span><div><strong>Lectura propia</strong><small>Comprueba que el perfil autorizado sea legible.</small></div><b>Pendiente</b></article>
+              <article class="security-check" id="security-check-read"><span class="security-check-icon">03</span><div><strong>Lectura ajena</strong><small>Intenta consultar filas fuera del alcance permitido.</small></div><b>Pendiente</b></article>
+              <article class="security-check" id="security-check-role"><span class="security-check-icon">04</span><div><strong>Identidad inmutable</strong><small>Intenta alterar el identificador protegido de la cuenta.</small></div><b>Pendiente</b></article>
+              <article class="security-check" id="security-check-storage"><span class="security-check-icon">05</span><div><strong>Storage privado</strong><small>Intenta abrir una ruta sin autorización.</small></div><b>Pendiente</b></article>
+            </div></section>
+            <section class="security-policy-grid"><article><span>Profesor</span><strong>Cursos propios</strong><p>Administra solo cursos donde es propietario y estudiantes matriculados en ellos.</p></article><article><span>Estudiante</span><strong>Filas matriculadas</strong><p>Consulta tareas publicadas, sus entregas y sus calificaciones.</p></article><article><span>Storage</span><strong>URLs temporales</strong><p>Los archivos se abren mediante enlaces firmados de 60 segundos.</p></article><article><span>Auditoría</span><strong>Historial inmutable</strong><p>El cliente no puede editar ni eliminar eventos registrados.</p></article></section>
+            <section class="security-audit-panel"><div class="security-audit-heading"><div><span class="eyebrow">Trazabilidad</span><h2>Registro de auditoría</h2><p>Solo se muestran eventos pertenecientes a la sesión autenticada.</p></div><div class="security-audit-actions"><button class="secondary-button" id="refresh-security-audit" type="button">Actualizar</button><button class="secondary-button" id="export-security-audit" type="button">Exportar JSON</button></div></div><div class="security-audit-toolbar"><label><span>⌕</span><input id="security-audit-search" type="search" placeholder="Buscar acción o entidad" /></label><select id="security-audit-filter" aria-label="Filtrar auditoría"><option value="all">Todos los eventos</option><option value="security">Seguridad</option><option value="course">Cursos</option><option value="assignment">Tareas</option><option value="submission">Entregas</option><option value="grade">Calificaciones</option></select><span id="security-audit-count">0 eventos</span></div><div class="security-audit-list" id="security-audit-list"><div class="empty-state">Cargando actividad...</div></div></section>
+          </section>
+          <section class="task-modal hidden" id="task-modal" aria-label="Detalle de tarea"><div class="task-modal-card"><button class="task-modal-close" id="close-task-modal" type="button" aria-label="Cerrar">×</button><div id="task-modal-content"><div class="detail-loading"><span></span><p>Cargando tarea...</p></div></div></div></section>
+          <section class="submission-modal hidden" id="submission-modal" aria-label="Entregar tarea"><div class="submission-modal-card"><div class="panel-heading"><div><span class="eyebrow accent">Entrega privada</span><h2 id="submission-title">Entregar tarea</h2></div><button class="close-button" id="close-submission-modal" type="button">×</button></div><form id="submission-form"><input id="submission-assignment-id" type="hidden" /><label class="form-field">Comentario<textarea id="submission-content" rows="3" placeholder="Añade una nota para tu profesor (opcional)"></textarea></label><div class="form-field file-field"><span>Archivo de entrega</span><input class="file-input" id="submission-file" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg" required /><label class="file-picker" for="submission-file"><span class="file-picker-icon">↑</span><span id="submission-file-name">Selecciona tu entrega</span><strong>Examinar</strong></label><small>Tu archivo solo será visible para ti y tu profesor.</small></div><button class="primary-button auth-submit" type="submit"><span>Enviar entrega</span><span>→</span></button><p class="form-feedback" id="submission-feedback"></p></form></div></section>
         </div>
       </section>
     </main>
+    <section class="notification-overlay hidden" id="notification-center" aria-label="Centro de notificaciones">
+      <button class="notification-backdrop" id="notification-backdrop" type="button" aria-label="Cerrar notificaciones"></button>
+      <aside class="notification-drawer" role="dialog" aria-modal="true" aria-labelledby="notification-title">
+        <header class="notification-header"><div><span class="eyebrow accent">Actividad en tiempo real</span><h2 id="notification-title">Notificaciones</h2><p id="notification-summary">Cargando novedades...</p></div><div><button class="notification-refresh" id="refresh-notifications" type="button" aria-label="Actualizar notificaciones">↻</button><button class="notification-close" id="close-notifications" type="button" aria-label="Cerrar">×</button></div></header>
+        <div class="notification-toolbar"><div class="notification-filters" role="tablist" aria-label="Filtrar notificaciones"><button class="active" type="button" role="tab" data-notification-filter="all">Todas</button><button type="button" role="tab" data-notification-filter="unread">No leídas <span id="notification-unread-count">0</span></button></div><button class="mark-read-button" id="mark-all-notifications-read" type="button">Marcar todas como leídas</button></div>
+        <div class="notification-list" id="notification-list" aria-live="polite"><div class="notification-empty"><span>◇</span><strong>Cargando actividad</strong><p>Estamos consultando tus datos autorizados.</p></div></div>
+        <footer class="notification-footer"><span>✓</span><p><strong>Privacidad por diseño</strong><br />Solo recibes novedades de filas permitidas por RLS.</p><button id="notification-open-security" type="button">Ver seguridad →</button></footer>
+      </aside>
+    </section>
     <section class="guide-modal hidden" id="guide-modal" aria-label="Guía de demostración"><div class="guide-card"><div class="panel-heading"><div><span class="eyebrow accent">AulaSegura en 60 segundos</span><h2>Así funciona la seguridad</h2></div><button class="close-button" id="close-guide" type="button">×</button></div><div class="guide-steps"><div><b>01</b><p><strong>Identidad</strong><br />Cada usuario entra con su cuenta y rol.</p></div><div><b>02</b><p><strong>Acceso por fila</strong><br />Cada estudiante ve solo sus datos.</p></div><div><b>03</b><p><strong>Prueba en vivo</strong><br />El botón de acceso restringido demuestra el bloqueo.</p></div></div><div class="guide-footer"><span class="status-dot"></span> Auth · RLS · Storage · Auditoría</div></div></section>
     <div class="toast" id="app-toast" role="status"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
