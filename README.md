@@ -44,3 +44,7 @@ Se añadió `supabase/migrations/003_storage_policies.sql`, que crea el bucket p
 ## Sprint 8
 
 Se añadió `supabase/migrations/004_submissions_policies.sql`. El estudiante puede enviar una entrega privada y el profesor puede revisar el archivo y registrar una calificación. La interfaz también muestra entregas pendientes y notas publicadas.
+
+## Sprint 9
+
+Se añadió `supabase/migrations/005_audit_rpc.sql` y una prueba visual de acceso restringido. La aplicación registra acciones importantes y muestra la actividad de seguridad del usuario. El botón de prueba consulta un perfil ajeno y confirma cuando RLS devuelve cero resultados.

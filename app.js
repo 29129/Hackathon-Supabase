@@ -39,6 +39,7 @@ function setAuthenticated(user, profile = {}) {
   document.getElementById('welcome-copy').textContent = `Aquí tienes un vistazo de tu actividad académica, ${name.split(' ')[0]}.`;
   document.querySelector('.page-heading h1').innerHTML = `Buenos días, ${name.split(' ')[0]} <span>✦</span>`;
   showRoleView(role);
+  loadAuditLogs();
 }
 
 function showLoggedOut() {
@@ -76,6 +77,44 @@ function formatDueDate(value) {
 function subjectClass(subject = '') {
   const first = subject.toLowerCase()[0] || 'a';
   return first < 'h' ? 'orange' : first < 'r' ? 'violet' : 'teal';
+}
+
+async function logAudit(action, entityType, metadata = {}) {
+  if (!supabaseClient || !currentUser) return;
+  await supabaseClient.rpc('log_audit_event', { event_action: action, event_entity_type: entityType, event_metadata: metadata });
+  await loadAuditLogs();
+}
+
+async function loadAuditLogs() {
+  if (!supabaseClient || !currentUser) return;
+  const { data } = await supabaseClient.from('audit_logs').select('action, entity_type, created_at').eq('actor_id', currentUser.id).order('created_at', { ascending: false }).limit(4);
+  const list = document.getElementById('audit-list');
+  if (!data?.length) {
+    list.innerHTML = '<small>Sin actividad reciente.</small>';
+    return;
+  }
+  list.innerHTML = data.map((log) => `<div class="audit-row"><span class="audit-icon">✓</span><span>${escapeHtml(log.action.replaceAll('_', ' '))}</span><span class="audit-time">${new Date(log.created_at).toLocaleTimeString('es-EC', { hour: '2-digit', minute: '2-digit' })}</span></div>`).join('');
+}
+
+async function runDeniedAccessTest() {
+  const result = document.getElementById('security-result');
+  result.textContent = 'Comprobando permisos...';
+  const { data, error } = await supabaseClient.from('profiles').select('id, full_name').neq('id', currentUser.id).limit(1);
+  if (error) {
+    result.textContent = `La política bloqueó la consulta: ${error.message}`;
+    result.className = 'security-result denied';
+    await logAudit('denied_access_test', 'profiles', { result: 'blocked_error' });
+    return;
+  }
+  if (!data?.length) {
+    result.textContent = '✓ Acceso bloqueado correctamente: no puedes ver el perfil de otro estudiante.';
+    result.className = 'security-result denied';
+    await logAudit('denied_access_test', 'profiles', { result: 'blocked_empty' });
+  } else {
+    result.textContent = '⚠ Revisa las políticas RLS: se obtuvo un perfil no autorizado.';
+    result.className = 'security-result';
+    await logAudit('denied_access_test', 'profiles', { result: 'unexpected_access' });
+  }
 }
 
 async function loadStudentDashboard() {
@@ -131,6 +170,7 @@ async function loadStudentDashboard() {
   gradeList.innerHTML = gradeRows.length
     ? gradeRows.slice(0, 4).map((grade) => `<div class="grade-row"><span class="subject-tag ${subjectClass(grade.submissions?.assignments?.courses?.subject)}">${escapeHtml((grade.submissions?.assignments?.courses?.subject || 'CUR').slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(grade.submissions?.assignments?.title || 'Actividad')}</strong><small>${escapeHtml(grade.submissions?.assignments?.courses?.name || 'Curso')}</small></div><b class="grade">${Number(grade.score).toFixed(1)}</b></div>`).join('')
     : '<div class="empty-state">Todavía no tienes calificaciones.</div>';
+  await loadAuditLogs();
 }
 
 function renderCourses(courses) {
@@ -245,6 +285,7 @@ async function createAssignment(event) {
     event.currentTarget.reset();
     feedback.textContent = 'Tarea publicada y archivo protegido correctamente.';
     feedback.className = 'form-feedback success';
+    await logAudit('assignment_created', 'assignment', { has_file: Boolean(attachmentPath) });
   }
   button.disabled = false;
 }
@@ -288,6 +329,7 @@ async function createSubmission(event) {
   } else {
     document.getElementById('submission-form').reset();
     document.getElementById('submission-modal').classList.add('hidden');
+    await logAudit('submission_created', 'submission', { has_file: true });
     await loadStudentDashboard();
   }
   button.disabled = false;
@@ -299,7 +341,10 @@ async function gradeSubmission(submissionId) {
   if (!Number.isFinite(score) || score < 0 || score > 10) return;
   const { error } = await supabaseClient.from('grades').insert({ submission_id: submissionId, graded_by: currentUser.id, score, feedback: 'Calificación publicada.' });
   if (error) window.alert(error.message);
-  else await loadTeacherSubmissions((await supabaseClient.from('courses').select('id').eq('teacher_id', currentUser.id)).data?.map((course) => course.id) || []);
+  else {
+    await logAudit('grade_created', 'grade', { score });
+    await loadTeacherSubmissions((await supabaseClient.from('courses').select('id').eq('teacher_id', currentUser.id)).data?.map((course) => course.id) || []);
+  }
 }
 
 async function loadProfile(user) {
@@ -368,6 +413,7 @@ document.getElementById('teacher-submission-list').addEventListener('click', (ev
   const gradeButton = event.target.closest('[data-grade-submit]');
   if (gradeButton) gradeSubmission(gradeButton.dataset.gradeSubmit);
 });
+document.getElementById('denied-access-test').addEventListener('click', runDeniedAccessTest);
 logoutButton.addEventListener('click', async () => {
   if (supabaseClient) await supabaseClient.auth.signOut();
   showLoggedOut();
