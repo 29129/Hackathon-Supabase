@@ -36,3 +36,7 @@ Se añadió el dashboard del profesor. Los usuarios con rol `teacher` pueden con
 ## Sprint 6
 
 El dashboard del estudiante ahora carga cursos matriculados, tareas publicadas y calificaciones desde Supabase. También calcula el promedio general y muestra estados vacíos cuando el estudiante aún no tiene datos.
+
+## Sprint 7
+
+Se añadió `supabase/migrations/003_storage_policies.sql`, que crea el bucket privado `course-files` y restringe la lectura y escritura según la pertenencia al curso. El profesor podrá adjuntar materiales y el estudiante los abrirá mediante URLs firmadas.

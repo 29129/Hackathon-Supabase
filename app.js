@@ -103,7 +103,7 @@ async function loadStudentDashboard() {
 
   const { data: assignments, error: assignmentError } = await supabaseClient
     .from('assignments')
-    .select('id, course_id, title, due_at, status, courses (name, subject)')
+    .select('id, course_id, title, due_at, status, attachment_path, courses (name, subject)')
     .in('course_id', courseIds)
     .eq('status', 'published')
     .order('due_at', { ascending: true });
@@ -114,7 +114,7 @@ async function loadStudentDashboard() {
   const openAssignments = assignments || [];
   document.getElementById('pending-count').textContent = openAssignments.length;
   taskList.innerHTML = openAssignments.length
-    ? openAssignments.slice(0, 4).map((assignment) => `<div class="task-row"><span class="subject-tag ${subjectClass(assignment.courses?.subject)}">${escapeHtml((assignment.courses?.subject || 'CUR').slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(assignment.title)}</strong><small>${escapeHtml(assignment.courses?.name || 'Curso')}</small></div><span class="due">${formatDueDate(assignment.due_at)}</span></div>`).join('')
+    ? openAssignments.slice(0, 4).map((assignment) => `<div class="task-row"><span class="subject-tag ${subjectClass(assignment.courses?.subject)}">${escapeHtml((assignment.courses?.subject || 'CUR').slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(assignment.title)}</strong><small>${escapeHtml(assignment.courses?.name || 'Curso')}</small></div>${assignment.attachment_path ? `<button class="file-link" type="button" data-file-path="${escapeHtml(assignment.attachment_path)}">Abrir archivo</button>` : ''}<span class="due">${formatDueDate(assignment.due_at)}</span></div>`).join('')
     : '<div class="empty-state">No tienes tareas pendientes.</div>';
 
   const { data: submissions } = await supabaseClient.from('submissions').select('id, assignment_id').eq('student_id', currentUser.id);
@@ -139,6 +139,7 @@ function renderCourses(courses) {
     return;
   }
   list.innerHTML = courses.map((course) => `<div class="course-card"><span class="course-icon">${course.subject.slice(0, 3).toUpperCase()}</span><div><strong>${course.name}</strong><small>${course.subject} · ${course.description || 'Sin descripción'}</small></div><span class="course-status">Activo</span></div>`).join('');
+  document.getElementById('assignment-course').innerHTML = '<option value="">Selecciona un curso</option>' + courses.map((course) => `<option value="${course.id}">${escapeHtml(course.name)} · ${escapeHtml(course.subject)}</option>`).join('');
 }
 
 async function loadTeacherCourses() {
@@ -172,6 +173,59 @@ async function createCourse(event) {
     await loadTeacherCourses();
   }
   button.disabled = false;
+}
+
+async function createAssignment(event) {
+  event.preventDefault();
+  const feedback = document.getElementById('assignment-feedback');
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  const courseId = document.getElementById('assignment-course').value;
+  const file = document.getElementById('assignment-file').files[0];
+  button.disabled = true;
+  feedback.className = 'form-feedback';
+  feedback.textContent = 'Publicando material...';
+  let attachmentPath = null;
+  if (file) {
+    if (file.size > 10 * 1024 * 1024) {
+      feedback.textContent = 'El archivo supera el límite de 10 MB.';
+      button.disabled = false;
+      return;
+    }
+    attachmentPath = `assignments/${courseId}/${currentUser.id}/${crypto.randomUUID()}-${file.name}`;
+    const upload = await supabaseClient.storage.from('course-files').upload(attachmentPath, file, { upsert: false });
+    if (upload.error) {
+      feedback.textContent = `No se pudo subir el archivo: ${upload.error.message}`;
+      button.disabled = false;
+      return;
+    }
+  }
+  const { error } = await supabaseClient.from('assignments').insert({
+    course_id: courseId,
+    created_by: currentUser.id,
+    title: document.getElementById('assignment-title').value.trim(),
+    due_at: document.getElementById('assignment-due').value || null,
+    status: 'published',
+    attachment_path: attachmentPath
+  });
+  if (error) {
+    if (attachmentPath) await supabaseClient.storage.from('course-files').remove([attachmentPath]);
+    feedback.textContent = error.message;
+  } else {
+    event.currentTarget.reset();
+    feedback.textContent = 'Tarea publicada y archivo protegido correctamente.';
+    feedback.className = 'form-feedback success';
+  }
+  button.disabled = false;
+}
+
+async function openProtectedFile(path) {
+  if (!path || !supabaseClient) return;
+  const { data, error } = await supabaseClient.storage.from('course-files').createSignedUrl(path, 60);
+  if (error) {
+    window.alert(`No se pudo abrir el archivo: ${error.message}`);
+    return;
+  }
+  window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
 }
 
 async function loadProfile(user) {
@@ -223,8 +277,13 @@ function setAuthMode(mode) {
 modeTabs.forEach((tab) => tab.addEventListener('click', () => setAuthMode(tab.dataset.authMode)));
 authForm.addEventListener('submit', handleAuth);
 document.getElementById('course-form').addEventListener('submit', createCourse);
+document.getElementById('assignment-form').addEventListener('submit', createAssignment);
 document.getElementById('new-course-button').addEventListener('click', () => document.getElementById('course-form-panel').classList.remove('hidden'));
 document.getElementById('close-course-form').addEventListener('click', () => document.getElementById('course-form-panel').classList.add('hidden'));
+document.getElementById('student-task-list').addEventListener('click', (event) => {
+  const fileButton = event.target.closest('[data-file-path]');
+  if (fileButton) openProtectedFile(fileButton.dataset.filePath);
+});
 logoutButton.addEventListener('click', async () => {
   if (supabaseClient) await supabaseClient.auth.signOut();
   showLoggedOut();
