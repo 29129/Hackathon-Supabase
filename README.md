@@ -48,3 +48,25 @@ Se añadió `supabase/migrations/004_submissions_policies.sql`. El estudiante pu
 ## Sprint 9
 
 Se añadió `supabase/migrations/005_audit_rpc.sql` y una prueba visual de acceso restringido. La aplicación registra acciones importantes y muestra la actividad de seguridad del usuario. El botón de prueba consulta un perfil ajeno y confirma cuando RLS devuelve cero resultados.
+
+## Sprint 10
+
+Se añadió la guía visual integrada para jurados, el indicador `RLS activa`, mensajes responsive y el cierre de la experiencia de demo.
+
+### Puesta en marcha para la demo
+
+1. Ejecuta las migraciones SQL en orden: `001`, `002`, `003`, `004` y `005`.
+2. Copia `config.example.js` como `config.js` y completa la URL y anon key del proyecto.
+3. Desactiva temporalmente la confirmación de correo en Auth o confirma manualmente las cuentas de prueba.
+4. Crea dos cuentas: una con rol `teacher` y otra con rol `student`.
+5. Entra como profesor, crea un curso y publica una tarea con archivo.
+6. En el SQL Editor, matricula al estudiante en el curso:
+
+```sql
+insert into public.enrollments (course_id, student_id)
+values ('ID_DEL_CURSO', 'ID_DEL_ESTUDIANTE');
+```
+
+7. Entra como estudiante, abre el material, sube una entrega y pulsa `Probar acceso restringido`.
+8. Vuelve como profesor para revisar la entrega y asignar una calificación.
+9. Abre `Guía de demo` para explicar Auth, RLS, Storage y Auditoría.

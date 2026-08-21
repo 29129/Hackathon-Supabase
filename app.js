@@ -20,6 +20,14 @@ let authMode = 'login';
 let currentUser = null;
 let currentProfile = {};
 
+function showToast(message) {
+  const toast = document.getElementById('app-toast');
+  toast.textContent = message;
+  toast.classList.add('visible');
+  window.clearTimeout(showToast.timer);
+  showToast.timer = window.setTimeout(() => toast.classList.remove('visible'), 2800);
+}
+
 function showMessage(message, type = '') {
   authFeedback.textContent = message;
   authFeedback.className = `auth-feedback ${type}`;
@@ -414,6 +422,11 @@ document.getElementById('teacher-submission-list').addEventListener('click', (ev
   if (gradeButton) gradeSubmission(gradeButton.dataset.gradeSubmit);
 });
 document.getElementById('denied-access-test').addEventListener('click', runDeniedAccessTest);
+document.getElementById('open-guide').addEventListener('click', () => document.getElementById('guide-modal').classList.remove('hidden'));
+document.getElementById('close-guide').addEventListener('click', () => document.getElementById('guide-modal').classList.add('hidden'));
+document.getElementById('guide-modal').addEventListener('click', (event) => {
+  if (event.target.id === 'guide-modal') event.currentTarget.classList.add('hidden');
+});
 logoutButton.addEventListener('click', async () => {
   if (supabaseClient) await supabaseClient.auth.signOut();
   showLoggedOut();

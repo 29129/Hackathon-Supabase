@@ -70,6 +70,8 @@
         <header class="topbar">
           <div class="mobile-brand"><div class="brand-mark">A</div><strong>AulaSegura</strong></div>
           <div class="topbar-actions">
+            <span class="rls-badge"><span class="status-dot"></span> RLS activa</span>
+            <button class="guide-button" id="open-guide" type="button">Guía de demo</button>
             <button class="icon-button" aria-label="Notificaciones">♢<span class="notification-dot"></span></button>
             <div class="date-label">Viernes, 21 de agosto de 2026</div>
             <button class="logout-button hidden" id="logout-button">Cerrar sesión</button>
@@ -125,6 +127,8 @@
         </div>
       </section>
     </main>
+    <section class="guide-modal hidden" id="guide-modal" aria-label="Guía de demostración"><div class="guide-card"><div class="panel-heading"><div><span class="eyebrow accent">AulaSegura en 60 segundos</span><h2>Así funciona la seguridad</h2></div><button class="close-button" id="close-guide" type="button">×</button></div><div class="guide-steps"><div><b>01</b><p><strong>Identidad</strong><br />Cada usuario entra con su cuenta y rol.</p></div><div><b>02</b><p><strong>Acceso por fila</strong><br />Cada estudiante ve solo sus datos.</p></div><div><b>03</b><p><strong>Prueba en vivo</strong><br />El botón de acceso restringido demuestra el bloqueo.</p></div></div><div class="guide-footer"><span class="status-dot"></span> Auth · RLS · Storage · Auditoría</div></div></section>
+    <div class="toast" id="app-toast" role="status"></div>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.js"></script>
     <script src="app.js"></script>
