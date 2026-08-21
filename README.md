@@ -6,6 +6,8 @@
   **Portal académico privado con identidad, permisos por fila y archivos protegidos.**
 
   `Supabase Auth` · `PostgreSQL` · `Row Level Security` · `Supabase Storage` · `Auditoría`
+
+  **[Abrir demo en producción](https://aulasegura-three.vercel.app)**
 </div>
 
 ---
@@ -143,10 +145,14 @@ Hackathon-Supabase/
 │       ├── 007_assignment_workflow_rls.sql
 │       ├── 008_course_lifecycle_rls.sql
 │       └── 009_server_audit_triggers.sql
+├── scripts/
+│   └── build.mjs
 ├── app.js
 ├── config.example.js
 ├── index.html
-└── styles.css
+├── package.json
+├── styles.css
+└── vercel.json
 ```
 
 ## Instalación
@@ -226,6 +232,26 @@ Crea o confirma dos cuentas de prueba:
 
 Para facilitar la evaluación, la demo permite escoger el rol durante el registro. En un entorno productivo, el rol docente debería asignarse mediante invitación o administración del colegio.
 
+## Despliegue en Vercel
+
+La aplicación está publicada en **[aulasegura-three.vercel.app](https://aulasegura-three.vercel.app)** y el proyecto de Vercel está conectado a este repositorio.
+
+El build copia los recursos públicos a `dist/` y genera `config.js` desde estas variables de entorno:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+
+Ambas deben configurarse para el entorno **Production** de Vercel. Después se puede desplegar con:
+
+```bash
+npm run build
+vercel --prod
+```
+
+Para que las confirmaciones de correo regresen a la aplicación, configura `https://aulasegura-three.vercel.app` como **Site URL** en la sección URL Configuration de Supabase Auth y añádela también a las Redirect URLs permitidas. Consulta la [documentación oficial de redirecciones](https://supabase.com/docs/guides/auth/redirect-urls).
+
+`dist/`, `.vercel/`, los archivos `.env` y la configuración local permanecen fuera de Git.
+
 ## Guion recomendado para los jurados
 
 1. Inicia sesión como **profesor**.
@@ -262,7 +288,7 @@ La prueba no deshabilita botones ni simula un mensaje. Ejecuta una consulta real
 
 ## Estado del proyecto
 
-Demo funcional desarrollada para una hackathon de Supabase. Incluye el flujo completo profesor–estudiante y evidencia visible de Auth, RLS, Storage y auditoría.
+Demo funcional desplegada en Vercel para una hackathon de Supabase. Incluye el flujo completo profesor–estudiante y evidencia visible de Auth, RLS, Storage y auditoría.
 
 ---
 
