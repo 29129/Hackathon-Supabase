@@ -74,7 +74,7 @@ function setAuthenticated(user, profile = {}) {
   document.querySelector('.page-heading h1').innerHTML = `Buenos días, ${name.split(' ')[0]} <span>✦</span>`;
   document.getElementById('workspace-new-course').classList.toggle('hidden', role !== 'teacher');
   document.getElementById('workspace-new-task').classList.toggle('hidden', role !== 'teacher');
-  document.getElementById('join-course-form').classList.toggle('hidden', role !== 'student');
+  document.getElementById('student-access-note').classList.toggle('hidden', role !== 'student');
   notificationFilter = 'all';
   setNotificationItems([]);
   document.getElementById('task-search').value = '';
@@ -444,6 +444,7 @@ function auditActionLabel(action = '') {
     assignment_created: 'Tarea creada',
     assignment_updated: 'Tarea actualizada',
     assignment_deleted: 'Tarea eliminada',
+    student_enrolled_manually: 'Estudiante agregado manualmente',
     submission_created: 'Entrega enviada',
     submission_updated: 'Entrega actualizada',
     grade_created: 'Calificación publicada',
@@ -856,16 +857,16 @@ function renderCourses(courses) {
     filterTaskWorkspace();
     return;
   }
-  list.innerHTML = courses.map((course) => `<div class="course-card ${course.status === 'archived' ? 'archived' : ''}"><span class="course-icon">${escapeHtml(course.subject.slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(course.name)}</strong><small>${escapeHtml(course.subject)} · ${escapeHtml(course.description || 'Sin descripción')}</small>${course.status === 'active' ? `<button class="invite-code" type="button" data-copy-code="${course.invite_code}">Código: ${course.invite_code} · Copiar</button>` : '<span class="course-code-paused">Invitaciones pausadas</span>'}</div><div class="course-card-actions"><span class="course-status ${course.status}">${courseStatusLabel(course.status)}</span><button class="course-open-button" type="button" data-open-course="${course.id}">Abrir →</button></div></div>`).join('');
+  list.innerHTML = courses.map((course) => `<div class="course-card ${course.status === 'archived' ? 'archived' : ''}"><span class="course-icon">${escapeHtml(course.subject.slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(course.name)}</strong><small>${escapeHtml(course.subject)} · ${escapeHtml(course.description || 'Sin descripción')}</small><span class="manual-enrollment-chip">${course.status === 'active' ? 'Matrícula manual' : 'Matrícula pausada'}</span></div><div class="course-card-actions"><span class="course-status ${course.status}">${courseStatusLabel(course.status)}</span><button class="course-open-button" type="button" data-open-course="${course.id}">Abrir →</button></div></div>`).join('');
   document.getElementById('assignment-course').innerHTML = activeCourses.length ? '<option value="">Selecciona un curso activo</option>' + activeCourses.map((course) => `<option value="${course.id}">${escapeHtml(course.name)} · ${escapeHtml(course.subject)}</option>`).join('') : '<option value="">No hay cursos activos</option>';
-  document.getElementById('space-course-list').innerHTML = courses.map((course) => `<article class="workspace-card ${course.status === 'archived' ? 'archived' : ''}"><span class="course-icon">${escapeHtml(course.subject.slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(course.name)}</strong><small>${escapeHtml(course.subject)} · ${course.status === 'active' ? 'Curso administrado por ti' : 'Curso archivado'}</small>${course.status === 'active' ? `<button class="invite-code" type="button" data-copy-code="${course.invite_code}">Código: ${course.invite_code} · Copiar</button>` : '<span class="course-code-paused">Invitaciones pausadas</span>'}</div><div class="workspace-card-actions"><span class="course-status ${course.status}">${courseStatusLabel(course.status)}</span><button class="course-open-button" type="button" data-open-course="${course.id}">Ver curso →</button></div></article>`).join('');
+  document.getElementById('space-course-list').innerHTML = courses.map((course) => `<article class="workspace-card ${course.status === 'archived' ? 'archived' : ''}"><span class="course-icon">${escapeHtml(course.subject.slice(0, 3).toUpperCase())}</span><div><strong>${escapeHtml(course.name)}</strong><small>${escapeHtml(course.subject)} · ${course.status === 'active' ? 'Curso administrado por ti' : 'Curso archivado'}</small><span class="manual-enrollment-chip">${course.status === 'active' ? 'Estudiantes agregados por correo' : 'Matrícula pausada'}</span></div><div class="workspace-card-actions"><span class="course-status ${course.status}">${courseStatusLabel(course.status)}</span><button class="course-open-button" type="button" data-open-course="${course.id}">Ver curso →</button></div></article>`).join('');
   document.getElementById('space-task-list').innerHTML = '<div class="workspace-row"><div><strong>Publica tu próxima tarea</strong><small>Las actividades aparecerán organizadas en este espacio.</small></div><span class="workspace-action">Desde el resumen</span></div>';
   document.getElementById('space-file-list').innerHTML = '<div class="workspace-row"><div><strong>Material protegido</strong><small>Los archivos adjuntos de tus tareas se mostrarán aquí.</small></div><span class="workspace-action">Storage privado</span></div>';
 }
 
 async function loadTeacherCourses() {
   if (!supabaseClient || !currentUser) return;
-  const { data, error } = await supabaseClient.from('courses').select('id, name, subject, description, status, invite_code').eq('teacher_id', currentUser.id).order('created_at', { ascending: false });
+  const { data, error } = await supabaseClient.from('courses').select('id, name, subject, description, status').eq('teacher_id', currentUser.id).order('created_at', { ascending: false });
   if (error) {
     document.getElementById('course-list').innerHTML = `<div class="empty-state">No se pudieron cargar los cursos: ${error.message}</div>`;
     return;
@@ -1069,8 +1070,14 @@ function renderCourseDetail(course, assignments, submissions, enrollments, role)
             const name = studentNames.get(enrollment.student_id) || 'Estudiante';
             return `<div class="detail-member"><span class="detail-avatar">${escapeHtml(initials(name))}</span><div><strong>${escapeHtml(name)}</strong><small>Estudiante · Desde ${formatLongDate(enrollment.enrolled_at)}</small></div><span class="detail-state success">Activo</span></div>`;
           }).join('')
-        : '<div class="detail-empty compact"><span>◎</span><strong>Sin estudiantes todavía</strong><p>Comparte el código para recibir matrículas.</p></div>')
+        : '<div class="detail-empty compact"><span>◎</span><strong>Sin estudiantes todavía</strong><p>Agrega la primera cuenta estudiantil con su correo.</p></div>')
     : `<div class="detail-member"><span class="detail-avatar">${escapeHtml(initials(currentProfile.full_name))}</span><div><strong>${escapeHtml(currentProfile.full_name || 'Tu cuenta')}</strong><small>Estudiante autenticado</small></div><span class="detail-state success">Acceso permitido</span></div><p class="detail-privacy-copy">La lista de compañeros permanece oculta. RLS solo entrega las filas necesarias para tu cuenta.</p>`;
+
+  const enrollmentForm = isTeacher
+    ? (isCourseActive
+        ? `<form class="manual-enrollment-form" data-enroll-student-form data-course-id="${course.id}"><div><span class="eyebrow accent">Alta manual</span><h3>Agregar estudiante</h3><p>La cuenta debe haberse registrado previamente como estudiante.</p></div><label><span>Correo institucional</span><input name="student_email" type="email" autocomplete="off" placeholder="estudiante@colegio.edu" required /></label><button class="primary-button" type="submit">Agregar <span>＋</span></button><p class="form-feedback" data-enrollment-feedback aria-live="polite"></p></form>`
+        : '<div class="manual-enrollment-paused"><strong>Matrícula pausada</strong><p>Reactiva el curso para agregar estudiantes.</p></div>')
+    : '';
 
   const reviewContent = isTeacher
     ? `<section class="detail-card detail-reviews"><div class="detail-section-heading"><div><span class="eyebrow">Evaluación privada</span><h2>Entregas del curso</h2></div><span class="detail-counter">${submissions.length}</span></div>${submissions.length ? submissions.map((submission) => {
@@ -1084,7 +1091,7 @@ function renderCourseDetail(course, assignments, submissions, enrollments, role)
     <section class="course-detail-hero">
       <div class="course-detail-mark">${escapeHtml(course.subject.slice(0, 3).toUpperCase())}</div>
       <div class="course-detail-title"><div class="detail-badges"><span class="detail-state ${isCourseActive ? 'success' : ''}">● ${isCourseActive ? 'Curso activo' : 'Curso archivado'}</span><span class="detail-protection">RLS · Acceso por fila</span></div><h1>${escapeHtml(course.name)}</h1><p>${escapeHtml(course.description || `Espacio académico de ${course.subject}.`)}</p><small>${escapeHtml(course.subject)} · Creado el ${formatLongDate(course.created_at)}</small></div>
-      <div class="course-hero-actions">${isTeacher ? `${isCourseActive ? `<button class="secondary-button" type="button" data-copy-code="${course.invite_code}">Código ${course.invite_code} · Copiar</button>` : ''}<button class="secondary-button" type="button" data-course-status-id="${course.id}" data-next-course-status="${isCourseActive ? 'archived' : 'active'}">${isCourseActive ? 'Archivar curso' : 'Reactivar curso'}</button>${isCourseActive ? `<button class="primary-button" type="button" data-course-new-task="${course.id}">Nueva tarea <span>＋</span></button>` : ''}` : ''}<button class="icon-refresh-button" type="button" data-refresh-course="${course.id}" aria-label="Actualizar curso">↻</button></div>
+      <div class="course-hero-actions">${isTeacher ? `<button class="secondary-button" type="button" data-course-status-id="${course.id}" data-next-course-status="${isCourseActive ? 'archived' : 'active'}">${isCourseActive ? 'Archivar curso' : 'Reactivar curso'}</button>${isCourseActive ? `<button class="primary-button" type="button" data-course-new-task="${course.id}">Nueva tarea <span>＋</span></button>` : ''}` : ''}<button class="icon-refresh-button" type="button" data-refresh-course="${course.id}" aria-label="Actualizar curso">↻</button></div>
     </section>
     <section class="detail-stats">${stats.map(([icon, label, value, copy]) => `<article><span>${icon}</span><div><small>${label}</small><strong>${value}</strong><em>${copy}</em></div></article>`).join('')}</section>
     <div class="course-detail-layout">
@@ -1093,7 +1100,7 @@ function renderCourseDetail(course, assignments, submissions, enrollments, role)
         ${reviewContent}
       </div>
       <aside class="course-detail-side">
-        <section class="detail-card"><div class="detail-section-heading"><div><span class="eyebrow">${isTeacher ? 'Personas' : 'Tu matrícula'}</span><h2>${isTeacher ? 'Estudiantes' : 'Acceso al curso'}</h2></div><span class="detail-counter">${isTeacher ? enrollments.length : '1'}</span></div><div class="detail-member-list">${memberContent}</div></section>
+        <section class="detail-card"><div class="detail-section-heading"><div><span class="eyebrow">${isTeacher ? 'Personas' : 'Tu matrícula'}</span><h2>${isTeacher ? 'Estudiantes' : 'Acceso al curso'}</h2></div><span class="detail-counter">${isTeacher ? enrollments.length : '1'}</span></div>${enrollmentForm}<div class="detail-member-list">${memberContent}</div></section>
         <section class="detail-card security-detail-card"><span class="security-shield">✓</span><span class="eyebrow">Seguridad verificable</span><h2>Datos protegidos</h2><p>Auth identifica tu cuenta, RLS filtra cada fila y Storage genera enlaces temporales.</p><ul><li><span></span>Sesión autenticada</li><li><span></span>Políticas RLS activas</li><li><span></span>Archivos privados por 60 s</li></ul><button class="security-test-button" type="button" data-course-security-test>Ejecutar prueba RLS <span>→</span></button><p class="security-result" id="course-security-result"></p></section>
       </aside>
     </div>`;
@@ -1121,7 +1128,7 @@ async function openCourseDetail(courseId) {
       ? supabaseClient.from('enrollments').select('student_id, enrolled_at, profiles!enrollments_student_id_fkey(full_name)').eq('course_id', courseId).order('enrolled_at', { ascending: false })
       : Promise.resolve({ data: [], error: null });
     const [courseResult, assignmentResult, enrollmentResult] = await withTimeout(Promise.all([
-      supabaseClient.from('courses').select('id, teacher_id, name, subject, description, status, invite_code, created_at').eq('id', courseId).maybeSingle(),
+      supabaseClient.from('courses').select('id, teacher_id, name, subject, description, status, created_at').eq('id', courseId).maybeSingle(),
       assignmentsQuery,
       enrollmentsQuery
     ]), 12000, 'El curso tardó demasiado en cargar.');
@@ -1322,41 +1329,39 @@ async function updateCourseStatus(button) {
   }
 }
 
-async function joinCourse(event) {
+async function enrollStudentManually(event) {
+  const form = event.target.closest('[data-enroll-student-form]');
+  if (!form) return;
   event.preventDefault();
-  const form = event.currentTarget;
   const button = form.querySelector('button[type="submit"]');
-  const feedback = document.getElementById('join-course-feedback');
-  const code = document.getElementById('join-course-code').value.trim().toUpperCase();
-  if (!/^[A-Z0-9]{6}$/.test(code)) {
+  const feedback = form.querySelector('[data-enrollment-feedback]');
+  const courseId = form.dataset.courseId;
+  const email = form.elements.namedItem('student_email').value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     feedback.className = 'form-feedback';
-    feedback.textContent = 'Escribe el código completo de 6 caracteres.';
+    feedback.textContent = 'Escribe un correo válido.';
     return;
   }
   button.disabled = true;
   feedback.className = 'form-feedback';
-  feedback.textContent = 'Comprobando invitación...';
+  feedback.textContent = 'Buscando la cuenta y autorizando el acceso...';
   try {
-    const result = await withTimeout(supabaseClient.rpc('join_course_by_code', { course_code: code }), 12000, 'La matrícula tardó demasiado.');
+    const result = await withTimeout(
+      supabaseClient.rpc('enroll_student_by_email', { target_course_id: courseId, student_email: email }),
+      12000,
+      'Agregar al estudiante tardó demasiado.'
+    );
     if (result.error) throw new Error(result.error.message);
     form.reset();
     feedback.className = 'form-feedback success';
-    feedback.textContent = 'Te uniste al curso correctamente.';
-    showToast('Curso añadido a tu cuenta.');
-    await loadStudentDashboard();
+    feedback.textContent = 'Estudiante agregado correctamente.';
+    showToast('Estudiante agregado al curso. Ya puede acceder con su cuenta.');
+    await loadTeacherCourses();
+    await openCourseDetail(courseId);
   } catch (error) {
-    feedback.textContent = error.message || 'No fue posible unirte al curso.';
+    feedback.textContent = error.message || 'No se pudo agregar al estudiante.';
   } finally {
     button.disabled = false;
-  }
-}
-
-async function copyCourseCode(code) {
-  try {
-    await navigator.clipboard.writeText(code);
-    showToast(`Código ${code} copiado.`);
-  } catch {
-    showToast(`Código del curso: ${code}`);
   }
 }
 
@@ -1649,7 +1654,6 @@ function setAuthMode(mode) {
 modeTabs.forEach((tab) => tab.addEventListener('click', () => setAuthMode(tab.dataset.authMode)));
 authForm.addEventListener('submit', handleAuth);
 document.getElementById('course-form').addEventListener('submit', createCourse);
-document.getElementById('join-course-form').addEventListener('submit', joinCourse);
 document.getElementById('assignment-form').addEventListener('submit', createAssignment);
 document.getElementById('new-course-button').addEventListener('click', () => openTeacherComposer('course'));
 document.getElementById('close-course-form').addEventListener('click', () => document.getElementById('course-form-panel').classList.add('hidden'));
@@ -1668,14 +1672,10 @@ document.getElementById('space-file-list').addEventListener('click', (event) => 
   if (fileButton) openProtectedFile(fileButton.dataset.filePath);
 });
 document.getElementById('course-list').addEventListener('click', (event) => {
-  const codeButton = event.target.closest('[data-copy-code]');
-  if (codeButton) copyCourseCode(codeButton.dataset.copyCode);
   const courseButton = event.target.closest('[data-open-course]');
   if (courseButton) openCourseDetail(courseButton.dataset.openCourse);
 });
 document.getElementById('space-course-list').addEventListener('click', (event) => {
-  const codeButton = event.target.closest('[data-copy-code]');
-  if (codeButton) copyCourseCode(codeButton.dataset.copyCode);
   const courseButton = event.target.closest('[data-open-course]');
   if (courseButton) openCourseDetail(courseButton.dataset.openCourse);
 });
@@ -1729,6 +1729,7 @@ document.getElementById('export-security-audit').addEventListener('click', expor
 document.getElementById('security-audit-search').addEventListener('input', renderSecurityAuditRows);
 document.getElementById('security-audit-filter').addEventListener('change', renderSecurityAuditRows);
 document.getElementById('course-detail-back').addEventListener('click', () => navigateView('courses'));
+document.getElementById('course-detail-view').addEventListener('submit', enrollStudentManually);
 document.getElementById('course-detail-view').addEventListener('click', (event) => {
   const backButton = event.target.closest('[data-course-back]');
   if (backButton) navigateView('courses');
@@ -1738,8 +1739,6 @@ document.getElementById('course-detail-view').addEventListener('click', (event) 
   if (submitButton) openSubmissionModal(submitButton.dataset.submitAssignment, submitButton.dataset.submitTitle);
   const editSubmissionButton = event.target.closest('[data-edit-submission-assignment]');
   if (editSubmissionButton) openSubmissionModal(editSubmissionButton.dataset.editSubmissionAssignment, editSubmissionButton.dataset.submitTitle, true);
-  const codeButton = event.target.closest('[data-copy-code]');
-  if (codeButton) copyCourseCode(codeButton.dataset.copyCode);
   const refreshButton = event.target.closest('[data-refresh-course]');
   if (refreshButton) openCourseDetail(refreshButton.dataset.refreshCourse);
   const taskButton = event.target.closest('[data-course-new-task]');

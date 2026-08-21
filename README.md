@@ -39,7 +39,7 @@ La autorización no depende de la interfaz. Cada consulta pasa por políticas RL
 
 - Registro e inicio de sesión con rol docente.
 - Creación, archivo y reactivación de cursos.
-- Código de invitación único por curso.
+- Matrícula manual de estudiantes mediante su correo institucional.
 - Creación de tareas como borrador o publicación inmediata.
 - Edición, cierre y eliminación confirmada de actividades.
 - Archivos de clase almacenados en un bucket privado.
@@ -50,7 +50,7 @@ La autorización no depende de la interfaz. Cada consulta pasa por políticas RL
 ### Para estudiantes
 
 - Registro e inicio de sesión con rol estudiante.
-- Matrícula mediante código de invitación.
+- Acceso automático cuando el profesor registra su cuenta en el curso.
 - Consulta de cursos y tareas publicadas.
 - Búsqueda y filtros por estado de actividad.
 - Descarga temporal de materiales autorizados.
@@ -99,7 +99,7 @@ flowchart LR
 |---|---|---|
 | Perfil | Consulta el propio y alumnos de sus cursos | Consulta únicamente el propio |
 | Cursos | Administra solo los que creó | Consulta solo los cursos activos donde está matriculado |
-| Matrículas | Consulta las de sus cursos | Consulta únicamente las propias |
+| Matrículas | Agrega por correo y consulta las de sus cursos | Consulta únicamente las propias |
 | Tareas | Crea, modifica y elimina las de sus cursos | Consulta tareas publicadas o cerradas de sus cursos |
 | Entregas | Consulta entregas de sus cursos | Crea y edita únicamente la propia mientras esté abierta y sin calificar |
 | Calificaciones | Crea y actualiza notas de sus cursos | Consulta únicamente sus notas |
@@ -146,7 +146,8 @@ Hackathon-Supabase/
 │       ├── 007_assignment_workflow_rls.sql
 │       ├── 008_course_lifecycle_rls.sql
 │       ├── 009_server_audit_triggers.sql
-│       └── 010_assignment_deletion_submission_edit.sql
+│       ├── 010_assignment_deletion_submission_edit.sql
+│       └── 011_manual_student_enrollment.sql
 ├── scripts/
 │   └── build.mjs
 ├── app.js
@@ -175,7 +176,7 @@ Crea un proyecto desde el panel de Supabase y espera a que la base de datos est�
 Abre el **SQL Editor** del proyecto y ejecuta, en este orden, el contenido de los archivos:
 
 ```text
-001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010
+001 → 002 → 003 → 004 → 005 → 006 → 007 → 008 → 009 → 010 → 011
 ```
 
 | Migración | Responsabilidad |
@@ -185,11 +186,12 @@ Abre el **SQL Editor** del proyecto y ejecuta, en este orden, el contenido de lo
 | `003_storage_policies.sql` | Bucket privado y material docente |
 | `004_submissions_policies.sql` | Entregas privadas y acceso del profesor |
 | `005_audit_rpc.sql` | Registro seguro de eventos desde la aplicación |
-| `006_course_invites.sql` | Códigos de invitación y matrícula segura |
+| `006_course_invites.sql` | Estructura inicial de invitaciones, sustituida después por la migración 011 |
 | `007_assignment_workflow_rls.sql` | Borradores, publicación, cierre y reglas de entrega |
 | `008_course_lifecycle_rls.sql` | Suspensión de acceso al archivar un curso |
 | `009_server_audit_triggers.sql` | Auditoría automática desde PostgreSQL |
 | `010_assignment_deletion_submission_edit.sql` | Edición de entregas sin calificar, identidad inmutable y limpieza segura |
+| `011_manual_student_enrollment.sql` | Matrícula manual por correo y desactivación del acceso mediante código |
 
 ### 4. Configurar la aplicación
 
@@ -257,12 +259,12 @@ Para que las confirmaciones de correo regresen a la aplicación, configura `http
 
 ## Guion recomendado para los jurados
 
-1. Inicia sesión como **profesor**.
-2. Crea un curso y copia su código de invitación.
-3. Publica una tarea con instrucciones y un archivo.
-4. Cierra sesión e ingresa como **estudiante**.
-5. Usa el código para matricularte en el curso.
-6. Abre el material y envía una entrega.
+1. Crea previamente una cuenta con rol **estudiante** y conserva su correo.
+2. Inicia sesión como **profesor** y crea un curso.
+3. Abre el curso y agrega manualmente el correo de la cuenta estudiantil.
+4. Publica una tarea con instrucciones y un archivo.
+5. Cierra sesión e ingresa como **estudiante**.
+6. Comprueba que el curso ya aparece, abre el material y envía una entrega.
 7. Edita la entrega y comprueba que el archivo o comentario se actualiza.
 8. Pulsa **RLS activa** y ejecuta los cinco controles de seguridad.
 9. Observa que la consulta ajena y la ruta privada quedan bloqueadas.
